@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -13,9 +12,6 @@ func main() {
 	// Subcommands
 	standaloneCommand := flag.NewFlagSet("standalone", flag.ExitOnError)
 	replsetCommand := flag.NewFlagSet("replset", flag.ExitOnError)
-	psCommand := flag.NewFlagSet("ps", flag.ExitOnError)
-	killCommand := flag.NewFlagSet("kill", flag.ExitOnError)
-	rmCommand := flag.NewFlagSet("rm", flag.ExitOnError)
 
 	// Standalone
 	standaloneAuthPtr := standaloneCommand.Bool("auth", false, "use auth")
@@ -51,11 +47,11 @@ func main() {
 	// os.Args[2:] will be all arguments starting after the subcommand at os.Args[1]
 	switch os.Args[1] {
 	case "ps":
-		psCommand.Parse(os.Args[2:])
+		Util_ps()
 	case "kill":
-		killCommand.Parse(os.Args[2:])
+		Util_kill()
 	case "rm":
-		rmCommand.Parse(os.Args[2:])
+		Util_rm()
 	case "standalone", "st":
 		standaloneCommand.Parse(os.Args[2:])
 	case "replset", "rs":
@@ -65,48 +61,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	// ps
-	if psCommand.Parsed() {
-		Util_ps()
-	}
-
-	if killCommand.Parsed() {
-		Util_kill()
-	}
-
-	if rmCommand.Parsed() {
-		Util_rm()
-	}
-
 	// Standalone
 	if standaloneCommand.Parsed() {
-		Run_standalone(*standalonePortPtr, *standaloneAuthPtr)
+		ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
 	}
 
 	// Replica set
 	if replsetCommand.Parsed() {
 		var rsNum int = *replsetNumPtr
-		var rsCfg string = *replsetConfigPtr
+		var rsCfg string = strings.ToUpper(*replsetConfigPtr)
 
 		re_config, _ := regexp.Compile("(?i)PS*A*")
-		re_num, _ := regexp.Compile("[0-9]+")
 
-		if len(os.Args) > 2 {
-			cmd := os.Args[2]
-			switch {
-			case re_config.MatchString(cmd):
-				rsNum = len(cmd)
-				rsCfg = cmd
-			case re_num.MatchString(cmd):
-				rsNum, _ = strconv.Atoi(cmd)
-				rsCfg = "P" + strings.Repeat("S", rsNum-1)
-			default:
-				replsetCommand.PrintDefaults()
-				os.Exit(1)
-			}
+		switch {
+		case rsNum != 3:
+			rsCfg = "P" + strings.Repeat("S", rsNum-1)
+		case rsCfg != "PSS" && re_config.MatchString(rsCfg):
+			rsNum = len(rsCfg)
+		case !re_config.MatchString(rsCfg):
+			fmt.Println("Invalid replica set configuration.")
+			replsetCommand.PrintDefaults()
+			os.Exit(1)
 		}
 
-		Run_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
+		RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
 	}
 
 }

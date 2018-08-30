@@ -4,17 +4,18 @@ import (
 	"fmt"
 )
 
-func Run_standalone(port int, auth bool) {
+func ST_deploy_standalone(port int, auth bool) {
 	var cmdline string
 
-	Util_create_dbpath()
+	cmdline = Util_create_dbpath()
 
-	cmdline = fmt.Sprintf("mongod --dbpath data --port %d ", port)
+	cmdline += fmt.Sprintf("mongod --dbpath data --port %d ", port)
 	cmdline += "--logpath data/mongod.log --fork "
 
 	if auth {
-		cmdline += "--auth "
+		cmdline += "--auth\n"
+		cmdline += Util_create_first_user(port)
 	}
 
-	fmt.Println(cmdline)
+	fmt.Print(cmdline)
 }
