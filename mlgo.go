@@ -22,6 +22,8 @@ func main() {
 	replsetAuthPtr := replsetCommand.Bool("auth", false, "use auth")
 	replsetPortPtr := replsetCommand.Int("port", 27017, "start on this port")
 	replsetNumPtr := replsetCommand.Int("num", 3, "run this many nodes")
+	replsetConfigPtr := replsetCommand.String("config", "PSS", "configuration of the set")
+	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
 
 	// Verify that a subcommand has been provided
 	// os.Arg[0] is the main command
@@ -51,9 +53,9 @@ func main() {
 		killCommand.Parse(os.Args[2:])
 	case "rm":
 		rmCommand.Parse(os.Args[2:])
-	case "standalone":
+	case "standalone", "st":
 		standaloneCommand.Parse(os.Args[2:])
-	case "replset":
+	case "replset", "rs":
 		replsetCommand.Parse(os.Args[2:])
 	default:
 		flag.PrintDefaults()
@@ -80,7 +82,7 @@ func main() {
 
 	// Replica set
 	if replsetCommand.Parsed() {
-		Run_replset(*replsetNumPtr, *replsetPortPtr, *replsetAuthPtr)
+		Run_replset(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr)
 	}
 
 }
