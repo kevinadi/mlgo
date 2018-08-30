@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 func main() {
@@ -22,7 +25,7 @@ func main() {
 	replsetAuthPtr := replsetCommand.Bool("auth", false, "use auth")
 	replsetPortPtr := replsetCommand.Int("port", 27017, "start on this port")
 	replsetNumPtr := replsetCommand.Int("num", 3, "run this many nodes")
-	replsetConfigPtr := replsetCommand.String("config", "PSS", "configuration of the set")
+	replsetConfigPtr := replsetCommand.String("cfg", "PSS", "configuration of the set")
 	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
 
 	// Verify that a subcommand has been provided
@@ -31,9 +34,9 @@ func main() {
 	if len(os.Args) < 2 {
 		var helptext string
 		helptext = "Usage:\n"
-		helptext += "  standalone -- run a standalone node\n"
-		helptext += "  replset -- run a replica set\n"
-		helptext += "  sharded -- run a sharded cluster\n"
+		helptext += "  standalone (st) -- run a standalone node\n"
+		helptext += "  replset (rs) -- run a replica set\n"
+		helptext += "  sharded (sh) -- run a sharded cluster\n"
 		helptext += "\n"
 		helptext += "  ps -- show all running mongod/mongos\n"
 		helptext += "  kill -- kill all running mongod/mongos\n"
@@ -82,7 +85,28 @@ func main() {
 
 	// Replica set
 	if replsetCommand.Parsed() {
-		Run_replset(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr)
+		var rsNum int = *replsetNumPtr
+		var rsCfg string = *replsetConfigPtr
+
+		re_config, _ := regexp.Compile("(?i)PS*A*")
+		re_num, _ := regexp.Compile("[0-9]+")
+
+		if len(os.Args) > 2 {
+			cmd := os.Args[2]
+			switch {
+			case re_config.MatchString(cmd):
+				rsNum = len(cmd)
+				rsCfg = cmd
+			case re_num.MatchString(cmd):
+				rsNum, _ = strconv.Atoi(cmd)
+				rsCfg = "P" + strings.Repeat("S", rsNum-1)
+			default:
+				replsetCommand.PrintDefaults()
+				os.Exit(1)
+			}
+		}
+
+		Run_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
 	}
 
 }

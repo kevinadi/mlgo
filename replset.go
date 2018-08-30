@@ -14,17 +14,23 @@ func create_dbpath(num int, port int) string {
 	return cmdline
 }
 
-func init_replset(num int, port int, replsetname string) string {
+func init_replset(config string, port int, replsetname string) string {
 	var conf string
 	var members []string
-	for i := 0; i < num; i++ {
-		switch {
-		case i == 0:
+
+	for i, m := range config {
+		switch strings.ToUpper(string(m)) {
+		case "P":
 			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:2}", i, port+i))
-		case i > 0 && i < 7:
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d'}", i, port+i))
-		case i >= 7:
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0}", i, port+i))
+		case "S":
+			switch {
+			case i > 0 && i < 7:
+				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d'}", i, port+i))
+			case i >= 7:
+				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0}", i, port+i))
+			}
+		case "A":
+			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', arbiterOnly:1}", i, port+i))
 		}
 	}
 
@@ -57,7 +63,7 @@ func Run_replset(num int, port int, config string, replsetname string, auth bool
 		cmdline += "\n"
 	}
 
-	cmdline += init_replset(num, port, replsetname)
+	cmdline += init_replset(config, port, replsetname)
 	cmdline += wait_for_primary(port)
 
 	fmt.Print(cmdline)
