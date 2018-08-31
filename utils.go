@@ -40,11 +40,15 @@ func Util_create_dbpath() string {
 }
 
 func Util_ps(what string) string {
+	var output_lines []string
 	cmdline := "ps -Ao 'pid,command' | grep -v 'grep .* mongod' | grep '\\smongo[ds]\\s'"
 	if what != "" {
 		cmdline += fmt.Sprintf(" | grep %s", what)
 	}
-	return Util_runcommand(cmdline)
+	for _, m := range strings.Split(Util_runcommand(cmdline), "\n") {
+		output_lines = append(output_lines, strings.TrimSpace(string(m)))
+	}
+	return strings.Join(output_lines, "\n")
 }
 
 func Util_kill(what string) {
