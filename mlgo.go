@@ -34,6 +34,7 @@ func main() {
 	shardedShardsvrPtr := shardedCommand.Int("shardsvr", 1, "run this many nodes per shard")
 	shardedConfigSvrPtr := shardedCommand.Int("configsvr", 1, "run this many config servers")
 	shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "P", "configuration of the shard replica set")
+	shardedScriptPtr := shardedCommand.Bool("script", false, "print deployment script")
 
 	// Verify that a subcommand has been provided
 	// os.Arg[0] is the main command
@@ -141,7 +142,7 @@ func main() {
 
 	// Sharded cluster
 	if shardedCommand.Parsed() {
-
+		var sh_cmd string = ""
 		var shNum int = *shardedShardsvrPtr
 		var shCfg string = strings.ToUpper(*shardedShardsvrConfigPtr)
 
@@ -156,22 +157,33 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("# Auth:", *shardedAuthPtr)
-		fmt.Println("# mongos port:", *shardedPortPtr)
-		fmt.Println("# Number of shards:", *shardedNumPtr)
-		fmt.Println("# ShardSvr replica set num:", shNum)
-		fmt.Println("# ShardSvr configuration:", shCfg)
-		fmt.Println("# Config servers:", *shardedConfigSvrPtr)
-		fmt.Println("")
+		sh_cmd += fmt.Sprintf("# Auth: %t\n", *shardedAuthPtr)
+		sh_cmd += fmt.Sprintf("# mongos port: %d\n", *shardedPortPtr)
+		sh_cmd += fmt.Sprintf("# Number of shards: %d\n", *shardedNumPtr)
+		sh_cmd += fmt.Sprintf("# ShardSvr replica set num: %d\n", shNum)
+		sh_cmd += fmt.Sprintf("# ShardSvr configuration: %s\n", shCfg)
+		sh_cmd += fmt.Sprintf("# Config servers: %d\n", *shardedConfigSvrPtr)
+		sh_config_summary := sh_cmd
 
+		sh_cmd += fmt.Sprintf("\n")
 		if *shardedAuthPtr {
-			fmt.Println(Util_create_dbpath())
-			fmt.Println(Util_create_keyfile())
+			sh_cmd += fmt.Sprintf(Util_create_dbpath())
+			sh_cmd += fmt.Sprintf(Util_create_keyfile())
 		}
-		shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
-		configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
-		mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
-		fmt.Println("")
-		fmt.Println(Util_start_script(shrd_calls + "\n" + cfg_calls + "\n" + mongos_calls))
+
+		sh_shards, shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
+		sh_config, configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
+		sh_mongos, mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
+
+		sh_cmd += sh_shards + "\n" + sh_config + "\n" + sh_mongos
+		sh_cmd += fmt.Sprintf("\n")
+		sh_cmd += fmt.Sprintf(Util_start_script(shrd_calls + "\n" + cfg_calls + "\n" + mongos_calls))
+
+		if *shardedScriptPtr {
+			fmt.Println(sh_cmd)
+		} else {
+			fmt.Println(sh_config_summary)
+			Util_runcommand(sh_cmd)
+		}
 	}
 }

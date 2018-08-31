@@ -13,7 +13,7 @@ func SH_shard_address(num int, port int, replset string) string {
 	return fmt.Sprintf("%s/%s", replset, strings.Join(serverlist, ","))
 }
 
-func SH_deploy_shardsvr(numshards int, shardsvr int, shardcfg string, port int, auth bool) ([]string, string) {
+func SH_deploy_shardsvr(numshards int, shardsvr int, shardcfg string, port int, auth bool) (string, []string, string) {
 	var shardservers []string
 	var mongod_calls []string
 	var cmdline string = ""
@@ -36,11 +36,10 @@ func SH_deploy_shardsvr(numshards int, shardsvr int, shardcfg string, port int, 
 		}
 	}
 
-	fmt.Print(cmdline)
-	return shardservers, strings.Join(mongod_calls, "\n")
+	return cmdline, shardservers, strings.Join(mongod_calls, "\n")
 }
 
-func SH_deploy_configsvr(num int, port int, auth bool) (string, string) {
+func SH_deploy_configsvr(num int, port int, auth bool) (string, string, string) {
 	var cmdline string = ""
 	var mongod_calls []string
 
@@ -55,11 +54,10 @@ func SH_deploy_configsvr(num int, port int, auth bool) (string, string) {
 		cmdline += Util_create_first_user(port)
 	}
 
-	fmt.Print(cmdline)
-	return SH_shard_address(num, port, "config"), strings.Join(mongod_calls, "\n")
+	return cmdline, SH_shard_address(num, port, "config"), strings.Join(mongod_calls, "\n")
 }
 
-func SH_deploy_mongos(configsvr string, shardsvr []string, port int, auth bool) string {
+func SH_deploy_mongos(configsvr string, shardsvr []string, port int, auth bool) (string, string) {
 	var cmdline string = ""
 	var mongos_calls []string
 	var addshard_cmd string = ""
@@ -85,6 +83,5 @@ func SH_deploy_mongos(configsvr string, shardsvr []string, port int, auth bool) 
 	}
 	cmdline += strings.Join(addshard_calls, "\n")
 
-	fmt.Println(cmdline)
-	return strings.Join(mongos_calls, "\n")
+	return cmdline, strings.Join(mongos_calls, "\n")
 }
