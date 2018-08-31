@@ -31,6 +31,9 @@ func SH_deploy_shardsvr(numshards int, shardsvr int, shardcfg string, port int, 
 		cmdline += cmd + "\n"
 		cmdline += RS_init_replset(shardcfg, shardport, shardname) + "\n"
 		cmdline += RS_wait_for_primary(shardport) + "\n"
+		if auth {
+			cmdline += Util_create_first_user(shardport)
+		}
 	}
 
 	fmt.Print(cmdline)
@@ -48,6 +51,10 @@ func SH_deploy_configsvr(num int, port int, auth bool) (string, string) {
 	cmdline += RS_init_replset(config, port, "config") + "\n"
 	cmdline += RS_wait_for_primary(port) + "\n"
 
+	if auth {
+		cmdline += Util_create_first_user(port)
+	}
+
 	fmt.Print(cmdline)
 	return SH_shard_address(num, port, "config"), strings.Join(mongod_calls, "\n")
 }
@@ -55,6 +62,7 @@ func SH_deploy_configsvr(num int, port int, auth bool) (string, string) {
 func SH_deploy_mongos(configsvr string, shardsvr []string, port int, auth bool) string {
 	var cmdline string = ""
 	var mongos_calls []string
+	var addshard_cmd string = ""
 	var addshard_calls []string
 
 	cmdline = fmt.Sprintf("mongos --configdb %s ", configsvr)
@@ -69,7 +77,11 @@ func SH_deploy_mongos(configsvr string, shardsvr []string, port int, auth bool) 
 	cmdline += "\n"
 
 	for _, shard := range shardsvr {
-		addshard_calls = append(addshard_calls, fmt.Sprintf("mongo --eval \"sh.addShard('%s')\"", shard))
+		addshard_cmd = fmt.Sprintf("mongo --eval \"sh.addShard('%s')\" ", shard)
+		if auth {
+			addshard_cmd += "-u user -p password --authenticationDatabase admin"
+		}
+		addshard_calls = append(addshard_calls, addshard_cmd)
 	}
 	cmdline += strings.Join(addshard_calls, "\n")
 

@@ -146,6 +146,10 @@ func main() {
 		fmt.Println("# Config servers:", *shardedConfigSvrPtr)
 		fmt.Println("")
 
+		if *shardedAuthPtr {
+			fmt.Println(Util_create_dbpath())
+			fmt.Println(Util_create_keyfile())
+		}
 		shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
 		configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
 		mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
