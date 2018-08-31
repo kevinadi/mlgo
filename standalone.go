@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func ST_deploy_standalone(port int, auth bool) string {
+func ST_deploy_standalone(port int, auth bool) (string, string) {
 	var cmdline string
 	var mongod_call string
 
@@ -24,6 +24,7 @@ func ST_deploy_standalone(port int, auth bool) string {
 		cmdline += Util_create_first_user(port)
 	}
 
-	fmt.Print(cmdline)
-	return mongod_call
+	// fmt.Print(cmdline)
+	// return mongod_call
+	return cmdline, mongod_call
 }

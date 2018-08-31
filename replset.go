@@ -71,7 +71,7 @@ func RS_call_mongod(num int, port int, config string, replsetname string, auth b
 	return strings.Join(cmdlines, "\n")
 }
 
-func RS_deploy_replset(num int, port int, config string, replsetname string, auth bool) string {
+func RS_deploy_replset(num int, port int, config string, replsetname string, auth bool) (string, string) {
 	var cmdline []string
 	var mongodcalls []string
 
@@ -91,6 +91,6 @@ func RS_deploy_replset(num int, port int, config string, replsetname string, aut
 		cmdline = append(cmdline, Util_create_first_user(port))
 	}
 
-	fmt.Println(strings.Join(cmdline, "\n"))
-	return strings.Join(mongodcalls, "\n")
+	//fmt.Println(strings.Join(cmdline, "\n"))
+	return strings.Join(cmdline, "\n"), strings.Join(mongodcalls, "\n")
 }

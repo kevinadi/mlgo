@@ -17,6 +17,7 @@ func main() {
 	// Standalone
 	standaloneAuthPtr := standaloneCommand.Bool("auth", false, "use auth")
 	standalonePortPtr := standaloneCommand.Int("port", 27017, "start on this port")
+	standaloneScriptPtr := standaloneCommand.Bool("script", false, "print deployment script")
 
 	// Replica set
 	replsetAuthPtr := replsetCommand.Bool("auth", false, "use auth")
@@ -24,6 +25,7 @@ func main() {
 	replsetNumPtr := replsetCommand.Int("num", 3, "run this many nodes")
 	replsetConfigPtr := replsetCommand.String("cfg", "PSS", "configuration of the set")
 	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
+	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 
 	// Sharded cluster
 	shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
@@ -89,14 +91,21 @@ func main() {
 
 	// Standalone
 	if standaloneCommand.Parsed() {
-		st_call := ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
-		fmt.Println(Util_start_script(st_call))
+		st_cmd, st_call := ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
+		st_cmd += Util_start_script(st_call)
+
+		if *standaloneScriptPtr {
+			fmt.Println(st_cmd)
+		} else {
+			fmt.Println(st_call)
+			Util_runcommand(st_cmd)
+		}
 	}
 
-	re_config, _ := regexp.Compile("(?i)PS*A*")
-
 	// Replica set
+	re_config, _ := regexp.Compile("(?i)PS*A*")
 	if replsetCommand.Parsed() {
+		var rs_cmd string = ""
 		var rsNum int = *replsetNumPtr
 		var rsCfg string = strings.ToUpper(*replsetConfigPtr)
 
@@ -111,14 +120,23 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("# Auth:", *replsetAuthPtr)
-		fmt.Println("# Replica set nodes:", rsNum)
-		fmt.Println("# Nodes configuration:", rsCfg)
-		fmt.Println("")
+		rs_cmd += fmt.Sprintf("# Auth: %t\n", *replsetAuthPtr)
+		rs_cmd += fmt.Sprintf("# Replica set nodes: %d\n", rsNum)
+		rs_cmd += fmt.Sprintf("# Nodes configuration: %s\n", rsCfg)
+		rs_config_summary := rs_cmd
 
-		rs_calls := RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
-		fmt.Println("")
-		fmt.Println(Util_start_script(rs_calls))
+		rs_cmd += fmt.Sprintf("\n")
+		rs_cmdlines, rs_calls := RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
+		rs_cmd += rs_cmdlines + "\n"
+		rs_cmd += fmt.Sprintf("\n")
+		rs_cmd += fmt.Sprintf("%s\n", Util_start_script(rs_calls))
+
+		if *replsetScriptPtr {
+			fmt.Print(rs_cmd)
+		} else {
+			fmt.Println(rs_config_summary)
+			Util_runcommand(rs_cmd)
+		}
 	}
 
 	// Sharded cluster
