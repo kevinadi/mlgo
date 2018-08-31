@@ -43,8 +43,9 @@ func main() {
 		helptext += "  replset (rs) -- run a replica set\n"
 		helptext += "  sharded (sh) -- run a sharded cluster\n"
 		helptext += "\n"
-		helptext += "  ps -- show all running mongod/mongos\n"
-		helptext += "  kill -- kill all running mongod/mongos\n"
+		helptext += "  ps [criteria] -- show running mongod/mongos\n"
+		helptext += "  start [criteria] -- start some mongod/mongos using the start.sh script\n"
+		helptext += "  kill [criteria] -- kill running mongod/mongos\n"
 		helptext += "  rm -- remove the data/ directory\n"
 		fmt.Println(helptext)
 		os.Exit(1)
@@ -56,9 +57,23 @@ func main() {
 	// os.Args[2:] will be all arguments starting after the subcommand at os.Args[1]
 	switch os.Args[1] {
 	case "ps":
-		Util_ps()
+		if len(os.Args) == 3 {
+			fmt.Println(Util_ps(os.Args[2]))
+		} else {
+			fmt.Println(Util_ps(""))
+		}
+	case "start":
+		if len(os.Args) == 3 {
+			Util_start_process(os.Args[2])
+		} else {
+			Util_start_process("")
+		}
 	case "kill":
-		Util_kill()
+		if len(os.Args) == 3 {
+			Util_kill(os.Args[2])
+		} else {
+			Util_kill("")
+		}
 	case "rm":
 		Util_rm()
 	case "standalone", "st":
@@ -74,7 +89,8 @@ func main() {
 
 	// Standalone
 	if standaloneCommand.Parsed() {
-		ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
+		st_call := ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
+		fmt.Println(Util_start_script(st_call))
 	}
 
 	re_config, _ := regexp.Compile("(?i)PS*A*")
@@ -95,7 +111,14 @@ func main() {
 			os.Exit(1)
 		}
 
-		RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
+		fmt.Println("# Auth:", *replsetAuthPtr)
+		fmt.Println("# Replica set nodes:", rsNum)
+		fmt.Println("# Nodes configuration:", rsCfg)
+		fmt.Println("")
+
+		rs_calls := RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
+		fmt.Println("")
+		fmt.Println(Util_start_script(rs_calls))
 	}
 
 	// Sharded cluster
@@ -116,17 +139,17 @@ func main() {
 		}
 
 		fmt.Println("# Auth:", *shardedAuthPtr)
-		fmt.Println("# Port:", *shardedPortPtr)
-		fmt.Println("# Shards:", *shardedNumPtr)
-		fmt.Println("# ShardSvr Num:", shNum)
-		fmt.Println("# ShardSvr Config:", shCfg)
+		fmt.Println("# mongos port:", *shardedPortPtr)
+		fmt.Println("# Number of shards:", *shardedNumPtr)
+		fmt.Println("# ShardSvr replica set num:", shNum)
+		fmt.Println("# ShardSvr configuration:", shCfg)
 		fmt.Println("# Config servers:", *shardedConfigSvrPtr)
+		fmt.Println("")
 
-		shardservers := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
-
-		configservers := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
-
-		SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
+		shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
+		configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
+		mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
+		fmt.Println("")
+		fmt.Println(Util_start_script(shrd_calls + "\n" + cfg_calls + "\n" + mongos_calls))
 	}
-
 }
