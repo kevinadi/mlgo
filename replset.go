@@ -42,7 +42,7 @@ func RS_init_replset(config string, port int, replsetname string) string {
 func RS_wait_for_primary(port int) string {
 	var cmdline string
 	cmdline = fmt.Sprintf("mongo --port %d --quiet --eval \"db.isMaster()\"", port)
-	cmdline = fmt.Sprintf("until %s | grep '\"ismaster\".*:.*true'; do sleep 2; echo waiting for primary...; done", cmdline)
+	cmdline = fmt.Sprintf("echo waiting for primary...; until %s | grep '\"ismaster\".*:.*true'; do sleep 2; done", cmdline)
 	return cmdline
 }
 
@@ -91,6 +91,5 @@ func RS_deploy_replset(num int, port int, config string, replsetname string, aut
 		cmdline = append(cmdline, Util_create_first_user(port))
 	}
 
-	//fmt.Println(strings.Join(cmdline, "\n"))
 	return strings.Join(cmdline, "\n"), strings.Join(mongodcalls, "\n")
 }

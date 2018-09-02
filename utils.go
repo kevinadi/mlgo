@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -31,6 +32,15 @@ func Util_runcommand(cmdline string) string {
 	}
 	output, _ := ioutil.ReadAll(comStdout)
 	return strings.TrimSpace(string(output))
+}
+
+func Util_runcommand_stdout(cmdline string) {
+	com := exec.Command("sh", "-c", cmdline)
+	com.Stdout = os.Stdout
+	if err := com.Start(); err != nil {
+		log.Fatal(err)
+	}
+	com.Wait()
 }
 
 func Util_create_dbpath() string {

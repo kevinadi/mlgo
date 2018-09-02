@@ -99,7 +99,7 @@ func main() {
 			fmt.Println(st_cmd)
 		} else {
 			fmt.Println(st_call)
-			Util_runcommand(st_cmd)
+			Util_runcommand_stdout(st_cmd)
 		}
 	}
 
@@ -136,7 +136,7 @@ func main() {
 			fmt.Print(rs_cmd)
 		} else {
 			fmt.Println(rs_config_summary)
-			Util_runcommand(rs_cmd)
+			Util_runcommand_stdout(rs_cmd)
 		}
 	}
 
@@ -183,7 +183,7 @@ func main() {
 			fmt.Println(sh_cmd)
 		} else {
 			fmt.Println(sh_config_summary)
-			Util_runcommand(sh_cmd)
+			Util_runcommand_stdout(sh_cmd)
 		}
 	}
 }
