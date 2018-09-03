@@ -108,3 +108,13 @@ func Util_start_process(what string) {
 	}
 	fmt.Println(Util_runcommand(cmdline))
 }
+
+func Util_install_m(where string) string {
+	var cmdline string = "curl https://raw.githubusercontent.com/aheckmann/m/master/bin/m"
+	if where != "" {
+		cmdline += fmt.Sprintf(" > %s/m && chmod 755 %s/m", where, where)
+	} else {
+		cmdline += " > /usr/local/bin/m && chmod 755 /usr/local/bin/m"
+	}
+	return cmdline
+}

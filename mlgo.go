@@ -59,6 +59,12 @@ func main() {
 	// FlagSet.Parse() requires a set of arguments to parse as input
 	// os.Args[2:] will be all arguments starting after the subcommand at os.Args[1]
 	switch os.Args[1] {
+	case "install-m":
+		if len(os.Args) == 3 {
+			fmt.Println(Util_install_m(os.Args[2]))
+		} else {
+			fmt.Println(Util_install_m(""))
+		}
 	case "ps":
 		if len(os.Args) == 3 {
 			fmt.Println(Util_ps(os.Args[2]))
@@ -167,7 +173,7 @@ func main() {
 
 		sh_cmd += fmt.Sprintf("\n")
 		if *shardedAuthPtr {
-			sh_cmd += fmt.Sprintf(Util_create_dbpath())
+			sh_cmd += fmt.Sprintf(Util_create_dbpath()) + "\n"
 			sh_cmd += fmt.Sprintf(Util_create_keyfile())
 		}
 
