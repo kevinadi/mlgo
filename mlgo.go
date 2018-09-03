@@ -50,6 +50,8 @@ func main() {
 		helptext += "  start [criteria] -- start some mongod/mongos using the start.sh script\n"
 		helptext += "  kill [criteria] -- kill running mongod/mongos\n"
 		helptext += "  rm -- remove the data/ directory\n"
+		helptext += "\n"
+		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
 		fmt.Println(helptext)
 		os.Exit(1)
 	}
