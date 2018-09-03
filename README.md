@@ -49,6 +49,35 @@ Usage of replset:
     	print deployment script
 ```
 
+### Examples
+
+Launch a basic 3-node replica set:
+
+```
+$ mlgo rs
+# Auth: false
+# Replica set nodes: 3
+# Nodes configuration: PSS
+```
+
+Launch a replica set with a specific node configuration:
+
+```
+$ mlgo rs -cfg PSA
+# Auth: false
+# Replica set nodes: 3
+# Nodes configuration: PSA
+```
+
+Launch a replica set with a number of nodes:
+
+```
+$ mlgo rs -num 5
+# Auth: false
+# Replica set nodes: 5
+# Nodes configuration: PSSSS
+```
+
 ## Sharded cluster
 
 ```
@@ -68,6 +97,44 @@ Usage of sharded:
     	configuration of the shard replica set (default "P")
   -shardsvr int
     	run this many nodes per shard (default 1)
+```
+
+### Examples:
+
+Launch a basic 2 shard, 1 node per shard, 1 config server:
+
+```
+$ mlgo sh
+# Auth: false
+# mongos port: 27017
+# Number of shards: 2
+# ShardSvr replica set num: 1
+# ShardSvr configuration: P
+# Config servers: 1
+```
+
+Launch a 3 shard, 3 nodes per shard, 3 config servers:
+
+```
+$ mlgo sh -num 3 -shardsvr 3 -configsvr 3
+# Auth: false
+# mongos port: 27017
+# Number of shards: 3
+# ShardSvr replica set num: 3
+# ShardSvr configuration: PSS
+# Config servers: 3
+```
+
+Launch a 2 shard, PSA configuration per shard, 1 config server:
+
+```
+$ mlgo sh -shardcfg PSA
+# Auth: false
+# mongos port: 27017
+# Number of shards: 2
+# ShardSvr replica set num: 3
+# ShardSvr configuration: PSA
+# Config servers: 1
 ```
 
 ## Starting and killing
