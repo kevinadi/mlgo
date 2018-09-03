@@ -73,13 +73,13 @@ func Util_kill(what string) {
 	cmdline = fmt.Sprintf("kill %s", strings.Join(pids, " "))
 
 	fmt.Println(cmdline)
-	fmt.Println(Util_runcommand(cmdline))
+	Util_runcommand(cmdline)
 }
 
 func Util_rm() {
 	cmdline := "rm -rf data"
 	fmt.Println(cmdline)
-	fmt.Println(Util_runcommand(cmdline))
+	Util_runcommand(cmdline)
 }
 
 func Util_create_first_user(port int) string {
