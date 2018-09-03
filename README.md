@@ -2,7 +2,7 @@
 
 Launch a MongoDB deployment for test purposes
 
-# Usage
+## Usage
 
 ```
 $ mlgo
@@ -17,7 +17,7 @@ Usage:
   rm -- remove the data/ directory
 ```
 
-## Standalone
+### Standalone
 
 ```
 $ mlgo st -h
@@ -30,7 +30,7 @@ Usage of standalone:
     	print deployment script
 ```
 
-## Replica set
+### Replica set
 
 ```
 $ mlgo rs -h
@@ -49,7 +49,7 @@ Usage of replset:
     	print deployment script
 ```
 
-### Examples
+#### Replica set examples
 
 Launch a basic 3-node replica set:
 
@@ -78,7 +78,7 @@ $ mlgo rs -num 5
 # Nodes configuration: PSSSS
 ```
 
-## Sharded cluster
+### Sharded cluster
 
 ```
 $ mlgo sh -h
@@ -99,7 +99,7 @@ Usage of sharded:
     	run this many nodes per shard (default 1)
 ```
 
-### Examples:
+#### Sharded cluster examples:
 
 Launch a basic 2 shard, 1 node per shard, 1 config server:
 
@@ -137,7 +137,7 @@ $ mlgo sh -shardcfg PSA
 # Config servers: 1
 ```
 
-## Starting and killing
+### Starting and killing
 
 `mlgo` can start and kill processes given by the command line criteria. For example, to kill and restart all `mongod` having `shard00` in its command line:
 
