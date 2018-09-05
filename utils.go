@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -27,19 +28,20 @@ func Util_create_keyfile() string {
 	return cmdline
 }
 
-func Util_print_script(cmd_array [][]string) {
+func Util_cmd_script(cmd_array [][]string) string {
+	var script string
 	for _, line := range cmd_array {
 		for _, cmd := range line {
 			if strings.Contains(cmd, " ") {
-				fmt.Print("\"", cmd, "\"")
+				script += fmt.Sprintf("\"%s\"", cmd)
 			} else {
-				fmt.Print(cmd)
+				script += fmt.Sprintf("%s", cmd)
 			}
-			fmt.Print(" ")
+			script += fmt.Sprintf(" ")
 		}
-		fmt.Println("")
+		script += fmt.Sprintf("\n")
 	}
-
+	return script
 }
 
 func Util_runcommand_string(cmdlines []string) {
@@ -57,21 +59,29 @@ func Util_runcommand_string(cmdlines []string) {
 }
 
 func Util_runcommand_string_string(cmdlines [][]string) {
+	var com *exec.Cmd
 	for _, line := range cmdlines {
 		fmt.Println("\n>>>", line)
-		com := exec.Command(line[0], line[1:]...)
+		if runtime.GOOS == "windows" {
+			line = append([]string{"cmd", "/c"}, line...)
+		}
+		com = exec.Command(line[0], line[1:]...)
 		com.Stdout = os.Stdout
+		com.Stderr = os.Stderr
 		com.Start()
 		com.Wait()
 	}
 }
 
-func Util_create_start_script(cmdlines []string) {
+func Util_create_start_script(cmdlines [][]string) {
 	outfile, err := os.Create("data/start.sh")
 	defer outfile.Close()
 	check(err)
-	for _, line := range cmdlines {
-		if strings.HasPrefix(line, "mongod") || strings.HasPrefix(line, "mongos") {
+
+	script := Util_cmd_script(cmdlines)
+	for _, line := range strings.Split(script, "\n") {
+		if strings.Contains(line, "mongod") ||
+			strings.Contains(line, "mongos") {
 			_, err := outfile.WriteString(line)
 			check(err)
 		}

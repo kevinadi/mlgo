@@ -25,6 +25,41 @@ func ST_mongod_start() []string {
 	return []string{"start", "/b"}
 }
 
+func ST_mongod_cmd(port int, auth bool) []string {
+	var mongod_call []string
+
+	mongod_call = append(mongod_call, "mongod")
+	mongod_call = append(mongod_call, ST_mongod_dbpath(port)...)
+	mongod_call = append(mongod_call, ST_mongod_port(port)...)
+	mongod_call = append(mongod_call, ST_mongod_logpath(port)...)
+
+	if auth {
+		mongod_call = append(mongod_call, "--auth")
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		mongod_call = append(ST_mongod_start(), mongod_call...)
+	default:
+		mongod_call = append(mongod_call, ST_mongod_fork()...)
+	}
+
+	return mongod_call
+}
+
+func ST_mkdir_cmd(port int) []string {
+	var mkdir_cmd []string
+
+	switch runtime.GOOS {
+	case "windows":
+		mkdir_cmd = []string{"mkdir", fmt.Sprintf("data\\%d", port)}
+	default:
+		mkdir_cmd = []string{"mkdir", "-p", fmt.Sprintf("data/%d", port)}
+	}
+
+	return mkdir_cmd
+}
+
 func ST_mongo_adduser(port int) []string {
 	return []string{
 		"mongo", "admin",
@@ -35,27 +70,9 @@ func ST_mongo_adduser(port int) []string {
 
 func ST_deploy_standalone(port int, auth bool) [][]string {
 	var cmdlines [][]string
-	var mongo_call []string
 
-	mkdir_cmd := []string{"mkdir", "-p", fmt.Sprintf("data/%d", port)}
-
-	mongo_call = append(mongo_call, "mongod")
-	mongo_call = append(mongo_call, ST_mongod_dbpath(port)...)
-	mongo_call = append(mongo_call, ST_mongod_port(port)...)
-	mongo_call = append(mongo_call, ST_mongod_logpath(port)...)
-	if auth {
-		mongo_call = append(mongo_call, "--auth")
-	}
-
-	if runtime.GOOS != "windows" {
-		mongo_call = append(mongo_call, ST_mongod_fork()...)
-	} else {
-		mongo_call = append(ST_mongod_start(), mongo_call...)
-	}
-
-	cmdlines = append(cmdlines, mkdir_cmd)
-	cmdlines = append(cmdlines, mongo_call)
-
+	cmdlines = append(cmdlines, ST_mkdir_cmd(port))
+	cmdlines = append(cmdlines, ST_mongod_cmd(port, auth))
 	if auth {
 		cmdlines = append(cmdlines, ST_mongo_adduser(port))
 	}

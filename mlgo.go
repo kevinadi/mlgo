@@ -103,10 +103,10 @@ func main() {
 		st_cmd_array := ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
 
 		if *standaloneScriptPtr {
-			Util_print_script(st_cmd_array)
+			fmt.Print(Util_cmd_script(st_cmd_array))
 		} else {
 			Util_runcommand_string_string(st_cmd_array)
-			//Util_create_start_script(st_cmd)
+			Util_create_start_script(st_cmd_array)
 		}
 	}
 
