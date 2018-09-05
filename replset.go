@@ -2,53 +2,40 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
-func RS_create_dbpath(num int, port int) string {
-	var cmdline []string
-	cmdline = append(cmdline, Util_create_dbpath())
-	for i := port; i < port+num; i++ {
-		cmdline = append(cmdline, fmt.Sprintf("mkdir data/%d", i))
+func RS_create_keyfile() {
+	Util_runcommand_string([]string{"mkdir", "data"})
+
+	outfile, err := os.Create("data/keyfile.txt")
+	defer outfile.Close()
+	Check(err)
+
+	_, err = outfile.WriteString(Util_randstring(40))
+	Check(err)
+
+	if runtime.GOOS != "windows" {
+		err = outfile.Chmod(0600)
+		Check(err)
 	}
-	return strings.Join(cmdline, "\n")
 }
 
-func RS_create_dbpath_xxx(num int, port int) []string {
-	var cmdline []string
-	cmdline = append(cmdline, Util_create_dbpath())
+func RS_create_dbpath(num int, port int) [][]string {
+	var cmdline [][]string
 	for i := port; i < port+num; i++ {
-		cmdline = append(cmdline, fmt.Sprintf("mkdir data/%d", i))
+		cmdline = append(cmdline, ST_mkdir_cmd(i))
 	}
 	return cmdline
 }
 
-func RS_init_replset(config string, port int, replsetname string) string {
-	var conf string
-	var members []string
-
-	for i, m := range config {
-		switch strings.ToUpper(string(m)) {
-		case "P":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:2}", i, port+i))
-		case "S":
-			switch {
-			case i > 0 && i < 7:
-				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d'}", i, port+i))
-			case i >= 7:
-				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0}", i, port+i))
-			}
-		case "A":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', arbiterOnly:1}", i, port+i))
-		}
-	}
-
-	conf += fmt.Sprintf("{_id:'%s', members:[%s]}", replsetname, strings.Join(members, ", "))
-	conf = fmt.Sprintf("mongo --port %d --eval \"rs.initiate(%s)\"", port, conf)
-	return conf
-}
-
-func RS_init_replset_xxx(config string, port int, replsetname string) []string {
+func RS_init_replset(config string, port int, replsetname string) []string {
 	var conf string
 	var members []string
 	var initcmd []string
@@ -70,99 +57,97 @@ func RS_init_replset_xxx(config string, port int, replsetname string) []string {
 	}
 
 	conf += fmt.Sprintf("{_id:'%s', members:[%s]}", replsetname, strings.Join(members, ", "))
-	//conf = fmt.Sprintf("mongo --port %d --eval \"rs.initiate(%s)\"", port, conf)
-	xxx := fmt.Sprintf("\"rs.initiate(%s)\"", conf)
-	initcmd = append(initcmd, []string{"mongo", "--port", "XXX", "--eval", xxx}...)
-	fmt.Println("000000", strings.Join(initcmd, "!!!"))
+	eval := fmt.Sprintf("rs.initiate(%s)", conf)
+	initcmd = append(initcmd, []string{"mongo", "--port", strconv.Itoa(port), "--eval", eval}...)
+
 	return initcmd
 }
 
-func RS_wait_for_primary(port int) string {
-	var cmdline string
-	cmdline = fmt.Sprintf("mongo --port %d --quiet --eval \"db.isMaster()\"", port)
-	cmdline = fmt.Sprintf("echo waiting for primary...; until %s | grep '\"ismaster\".*:.*true'; do sleep 2; done", cmdline)
-	return cmdline
+func RS_wait_for_primary(port int) {
+	var cmdline []string
+	cmdline = append(cmdline, []string{
+		"mongo",
+		"--port", strconv.Itoa(port),
+		"--quiet",
+		"--eval", "db.isMaster()",
+	}...)
+
+	fmt.Println("Waiting for primary...")
+	primary := false
+	i := 0
+	for !primary && i < 10 {
+		com := exec.Command(cmdline[0], cmdline[1:]...)
+		out, err := com.CombinedOutput()
+		if err != nil {
+			log.Fatalf("isMaster failed with %s\n", err)
+		}
+		primary = strings.Contains(string(out), "\"ismaster\" : true")
+		time.Sleep(2 * time.Second)
+		i += 1
+	}
+
+	if !primary {
+		fmt.Println("Primary not found after 20 seconds")
+		os.Exit(1)
+	}
 }
 
-func RS_call_mongod(num int, port int, config string, replsetname string, auth bool) string {
-	var cmdlines []string
-	mongod_call := ""
+func RS_call_mongod(num int, port int, config string, replsetname string, auth bool) [][]string {
+	var cmdlines [][]string
+
 	for i := 0; i < num; i++ {
-		mongod_call = fmt.Sprintf("mongod --dbpath data/%d --port %d ", port+i, port+i)
-		mongod_call += fmt.Sprintf("--logpath data/%d/mongod.log --fork ", port+i)
-		mongod_call += fmt.Sprintf("--replSet %s ", replsetname)
-
+		mongod_cmd := ST_mongod_cmd(port+i, auth)
+		mongod_cmd = append(mongod_cmd, []string{"--replSet", replsetname}...)
 		if auth {
-			mongod_call += "--keyFile data/keyfile.txt "
+			mongod_cmd = append(mongod_cmd, []string{"--keyFile", "data/keyfile.txt"}...)
 		}
-
 		if strings.HasPrefix(replsetname, "shard") {
-			mongod_call += "--shardsvr"
+			mongod_cmd = append(mongod_cmd, []string{"--shardsvr"}...)
 		}
-
 		if strings.HasPrefix(replsetname, "config") {
-			mongod_call += "--configsvr"
+			mongod_cmd = append(mongod_cmd, []string{"--configsvr"}...)
 		}
-
-		cmdlines = append(cmdlines, mongod_call)
+		cmdlines = append(cmdlines, mongod_cmd)
 	}
-	return strings.Join(cmdlines, "\n")
-}
 
-func RS_call_mongod_xxx(num int, port int, config string, replsetname string, auth bool) []string {
-	var cmdlines []string
-	mongod_call := ""
-	for i := 0; i < num; i++ {
-		mongod_call = fmt.Sprintf("mongod --dbpath data/%d --port %d ", port+i, port+i)
-		mongod_call += fmt.Sprintf("--logpath data/%d/mongod.log --fork ", port+i)
-		mongod_call += fmt.Sprintf("--replSet %s ", replsetname)
-
-		if auth {
-			mongod_call += "--keyFile data/keyfile.txt "
-		}
-
-		if strings.HasPrefix(replsetname, "shard") {
-			mongod_call += "--shardsvr"
-		}
-
-		if strings.HasPrefix(replsetname, "config") {
-			mongod_call += "--configsvr"
-		}
-
-		cmdlines = append(cmdlines, mongod_call)
-	}
-	//return strings.Join(cmdlines, "\n")
 	return cmdlines
 }
 
-func RS_deploy_replset(num int, port int, config string, replsetname string, auth bool) (string, string) {
-	var cmdline []string
-	//var cmdline string
-	var mongodcalls []string
+func RS_commandlines(num int, port int, config string, replsetname string, auth bool) ([][]string, string) {
+	var cmdlines [][]string
+	var hosts []string
 
-	cmdline = append(cmdline, RS_create_dbpath_xxx(num, port)...)
+	cmdlines = append(cmdlines, RS_create_dbpath(num, port)...)
+	cmdlines = append(cmdlines, RS_call_mongod(num, port, config, replsetname, auth)...)
+	cmdlines = append(cmdlines, RS_init_replset(config, port, replsetname))
 
-	if auth {
-		cmdline = append(cmdline, Util_create_keyfile())
+	for i := 0; i < num; i++ {
+		hosts = append(hosts, fmt.Sprintf("localhost:%d", port+i))
 	}
+	connstr := replsetname + "/" + strings.Join(hosts, ",")
 
-	mongodcalls = append(mongodcalls, RS_call_mongod_xxx(num, port, config, replsetname, auth)...)
-	cmdline = append(cmdline, mongodcalls[len(mongodcalls)-1])
+	return cmdlines, connstr
+}
 
-	cmdline = append(cmdline, RS_init_replset(config, port, replsetname))
-	fmt.Println("=-=-=-=-=-=")
-	fmt.Println(RS_init_replset_xxx(config, port, replsetname))
-	fmt.Println("=-=-=-=-=-=")
-	cmdline = append(cmdline, RS_wait_for_primary(port))
+func RS_deploy_replset(num int, port int, config string, replsetname string, auth bool, script bool) {
+	fmt.Printf("# Auth: %t\n", auth)
+	fmt.Printf("# Replica set nodes: %d\n", num)
+	fmt.Printf("# Nodes configuration: %s\n\n", config)
 
-	if auth {
-		cmdline = append(cmdline, Util_create_first_user(port))
+	cmdlines, connstr := RS_commandlines(num, port, config, replsetname, auth)
+
+	if script {
+		fmt.Println(Util_cmd_script(cmdlines))
+	} else {
+		if auth {
+			RS_create_keyfile()
+		}
+		Util_runcommand_string_string(cmdlines)
+		RS_wait_for_primary(port)
+		if auth {
+			Util_runcommand_string(ST_mongo_adduser(port))
+		}
+		Util_create_start_script(cmdlines)
+		fmt.Println(" -- ", "connstr :", connstr)
 	}
-
-	fmt.Println("----------")
-	for i, line := range cmdline {
-		fmt.Println(i, "++", line)
-	}
-	fmt.Println("++++++++++")
-	return strings.Join(cmdline, "\n"), strings.Join(mongodcalls, "\n")
 }

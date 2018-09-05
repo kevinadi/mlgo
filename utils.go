@@ -11,10 +11,19 @@ import (
 	"strings"
 )
 
-func check(e error) {
+func Check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func Util_randstring(num int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	randstr := make([]byte, num)
+	for i := range randstr {
+		randstr[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(randstr)
 }
 
 func Util_create_keyfile() string {
@@ -32,7 +41,8 @@ func Util_cmd_script(cmd_array [][]string) string {
 	var script string
 	for _, line := range cmd_array {
 		for _, cmd := range line {
-			if strings.Contains(cmd, " ") {
+			if strings.Contains(cmd, " ") ||
+				strings.Contains(cmd, "(") {
 				script += fmt.Sprintf("\"%s\"", cmd)
 			} else {
 				script += fmt.Sprintf("%s", cmd)
@@ -44,46 +54,35 @@ func Util_cmd_script(cmd_array [][]string) string {
 	return script
 }
 
-func Util_runcommand_string(cmdlines []string) {
-	for _, line := range cmdlines {
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		fmt.Println("\n>>>", line)
-		ll := strings.Fields(line)
-		com := exec.Command(ll[0], ll[1:]...)
-		com.Stdout = os.Stdout
-		com.Start()
-		com.Wait()
+func Util_runcommand_string(line []string) {
+	fmt.Println(" -- ", line)
+	if runtime.GOOS == "windows" {
+		line = append([]string{"cmd", "/c"}, line...)
 	}
+	com := exec.Command(line[0], line[1:]...)
+	com.Stdout = os.Stdout
+	com.Stderr = os.Stderr
+	com.Start()
+	com.Wait()
 }
 
 func Util_runcommand_string_string(cmdlines [][]string) {
-	var com *exec.Cmd
 	for _, line := range cmdlines {
-		fmt.Println("\n>>>", line)
-		if runtime.GOOS == "windows" {
-			line = append([]string{"cmd", "/c"}, line...)
-		}
-		com = exec.Command(line[0], line[1:]...)
-		com.Stdout = os.Stdout
-		com.Stderr = os.Stderr
-		com.Start()
-		com.Wait()
+		Util_runcommand_string(line)
 	}
 }
 
 func Util_create_start_script(cmdlines [][]string) {
 	outfile, err := os.Create("data/start.sh")
 	defer outfile.Close()
-	check(err)
+	Check(err)
 
 	script := Util_cmd_script(cmdlines)
 	for _, line := range strings.Split(script, "\n") {
 		if strings.Contains(line, "mongod") ||
 			strings.Contains(line, "mongos") {
-			_, err := outfile.WriteString(line)
-			check(err)
+			_, err := outfile.WriteString(line + "\n")
+			Check(err)
 		}
 	}
 	outfile.Sync()

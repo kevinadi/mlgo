@@ -28,13 +28,13 @@ func main() {
 	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 
 	// Sharded cluster
-	shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
-	shardedPortPtr := shardedCommand.Int("port", 27017, "start on this port")
-	shardedNumPtr := shardedCommand.Int("num", 2, "run this many shards")
-	shardedShardsvrPtr := shardedCommand.Int("shardsvr", 1, "run this many nodes per shard")
-	shardedConfigSvrPtr := shardedCommand.Int("configsvr", 1, "run this many config servers")
-	shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "P", "configuration of the shard replica set")
-	shardedScriptPtr := shardedCommand.Bool("script", false, "print deployment script")
+	// shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
+	// shardedPortPtr := shardedCommand.Int("port", 27017, "start on this port")
+	// shardedNumPtr := shardedCommand.Int("num", 2, "run this many shards")
+	// shardedShardsvrPtr := shardedCommand.Int("shardsvr", 1, "run this many nodes per shard")
+	// shardedConfigSvrPtr := shardedCommand.Int("configsvr", 1, "run this many config servers")
+	// shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "P", "configuration of the shard replica set")
+	// shardedScriptPtr := shardedCommand.Bool("script", false, "print deployment script")
 
 	// Verify that a subcommand has been provided
 	// os.Arg[0] is the main command
@@ -113,7 +113,6 @@ func main() {
 	// Replica set
 	re_config, _ := regexp.Compile("(?i)PS*A*")
 	if replsetCommand.Parsed() {
-		var rs_cmd string = ""
 		var rsNum int = *replsetNumPtr
 		var rsCfg string = strings.ToUpper(*replsetConfigPtr)
 
@@ -128,71 +127,53 @@ func main() {
 			os.Exit(1)
 		}
 
-		rs_cmd += fmt.Sprintf("# Auth: %t\n", *replsetAuthPtr)
-		rs_cmd += fmt.Sprintf("# Replica set nodes: %d\n", rsNum)
-		rs_cmd += fmt.Sprintf("# Nodes configuration: %s\n", rsCfg)
-		rs_config_summary := rs_cmd
-
-		rs_cmd += fmt.Sprintf("\n")
-
-		rs_cmdlines, rs_calls := RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
-
-		rs_cmd += rs_cmdlines + "\n"
-		rs_cmd += fmt.Sprintf("\n")
-		rs_cmd += fmt.Sprintf("%s\n", Util_start_script(rs_calls))
-
-		if *replsetScriptPtr {
-			fmt.Print(rs_cmd)
-		} else {
-			fmt.Println(rs_config_summary)
-			Util_runcommand_stdout(rs_cmd)
-		}
+		RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr, *replsetScriptPtr)
 	}
 
 	// Sharded cluster
 	if shardedCommand.Parsed() {
-		var sh_cmd string = ""
-		var shNum int = *shardedShardsvrPtr
-		var shCfg string = strings.ToUpper(*shardedShardsvrConfigPtr)
+		// var sh_cmd string = ""
+		// var shNum int = *shardedShardsvrPtr
+		// var shCfg string = strings.ToUpper(*shardedShardsvrConfigPtr)
 
-		switch {
-		case shNum != 1:
-			shCfg = "P" + strings.Repeat("S", shNum-1)
-		case shCfg != "P" && re_config.MatchString(shCfg):
-			shNum = len(shCfg)
-		case !re_config.MatchString(shCfg):
-			fmt.Println("Invalid replica set configuration.")
-			shardedCommand.PrintDefaults()
-			os.Exit(1)
-		}
+		// switch {
+		// case shNum != 1:
+		// 	shCfg = "P" + strings.Repeat("S", shNum-1)
+		// case shCfg != "P" && re_config.MatchString(shCfg):
+		// 	shNum = len(shCfg)
+		// case !re_config.MatchString(shCfg):
+		// 	fmt.Println("Invalid replica set configuration.")
+		// 	shardedCommand.PrintDefaults()
+		// 	os.Exit(1)
+		// }
 
-		sh_cmd += fmt.Sprintf("# Auth: %t\n", *shardedAuthPtr)
-		sh_cmd += fmt.Sprintf("# mongos port: %d\n", *shardedPortPtr)
-		sh_cmd += fmt.Sprintf("# Number of shards: %d\n", *shardedNumPtr)
-		sh_cmd += fmt.Sprintf("# ShardSvr replica set num: %d\n", shNum)
-		sh_cmd += fmt.Sprintf("# ShardSvr configuration: %s\n", shCfg)
-		sh_cmd += fmt.Sprintf("# Config servers: %d\n", *shardedConfigSvrPtr)
-		sh_config_summary := sh_cmd
+		// sh_cmd += fmt.Sprintf("# Auth: %t\n", *shardedAuthPtr)
+		// sh_cmd += fmt.Sprintf("# mongos port: %d\n", *shardedPortPtr)
+		// sh_cmd += fmt.Sprintf("# Number of shards: %d\n", *shardedNumPtr)
+		// sh_cmd += fmt.Sprintf("# ShardSvr replica set num: %d\n", shNum)
+		// sh_cmd += fmt.Sprintf("# ShardSvr configuration: %s\n", shCfg)
+		// sh_cmd += fmt.Sprintf("# Config servers: %d\n", *shardedConfigSvrPtr)
+		// sh_config_summary := sh_cmd
 
-		sh_cmd += fmt.Sprintf("\n")
-		if *shardedAuthPtr {
-			sh_cmd += fmt.Sprintf(Util_create_dbpath()) + "\n"
-			sh_cmd += fmt.Sprintf(Util_create_keyfile())
-		}
+		// sh_cmd += fmt.Sprintf("\n")
+		// if *shardedAuthPtr {
+		// 	sh_cmd += fmt.Sprintf(Util_create_dbpath()) + "\n"
+		// 	sh_cmd += fmt.Sprintf(Util_create_keyfile())
+		// }
 
-		sh_shards, shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
-		sh_config, configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
-		sh_mongos, mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
+		// sh_shards, shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
+		// sh_config, configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
+		// sh_mongos, mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
 
-		sh_cmd += sh_shards + "\n" + sh_config + "\n" + sh_mongos
-		sh_cmd += fmt.Sprintf("\n")
-		sh_cmd += fmt.Sprintf(Util_start_script(shrd_calls + "\n" + cfg_calls + "\n" + mongos_calls))
+		// sh_cmd += sh_shards + "\n" + sh_config + "\n" + sh_mongos
+		// sh_cmd += fmt.Sprintf("\n")
+		// sh_cmd += fmt.Sprintf(Util_start_script(shrd_calls + "\n" + cfg_calls + "\n" + mongos_calls))
 
-		if *shardedScriptPtr {
-			fmt.Println(sh_cmd)
-		} else {
-			fmt.Println(sh_config_summary)
-			Util_runcommand_stdout(sh_cmd)
-		}
+		// if *shardedScriptPtr {
+		// 	fmt.Println(sh_cmd)
+		// } else {
+		// 	fmt.Println(sh_config_summary)
+		// 	Util_runcommand_stdout(sh_cmd)
+		// }
 	}
 }
