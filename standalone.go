@@ -68,7 +68,7 @@ func ST_mongo_adduser(port int) []string {
 	}
 }
 
-func ST_deploy_standalone(port int, auth bool) [][]string {
+func ST_deploy_standalone(port int, auth bool, script bool) {
 	var cmdlines [][]string
 
 	cmdlines = append(cmdlines, ST_mkdir_cmd(port))
@@ -77,5 +77,11 @@ func ST_deploy_standalone(port int, auth bool) [][]string {
 		cmdlines = append(cmdlines, ST_mongo_adduser(port))
 	}
 
-	return cmdlines
+	if script {
+		fmt.Print(Util_cmd_script(cmdlines))
+	} else {
+		Util_runcommand_string_string(cmdlines)
+		Util_create_start_script(cmdlines)
+	}
+
 }
