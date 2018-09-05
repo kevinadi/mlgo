@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 func Util_create_keyfile() string {
 	var cmdline string
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -18,7 +24,59 @@ func Util_create_keyfile() string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	cmdline = fmt.Sprintf("echo %s > data/keyfile.txt && chmod 600 data/keyfile.txt", string(b))
-	return cmdline + "\n"
+	return cmdline
+}
+
+func Util_print_script(cmd_array [][]string) {
+	for _, line := range cmd_array {
+		for _, cmd := range line {
+			if strings.Contains(cmd, " ") {
+				fmt.Print("\"", cmd, "\"")
+			} else {
+				fmt.Print(cmd)
+			}
+			fmt.Print(" ")
+		}
+		fmt.Println("")
+	}
+
+}
+
+func Util_runcommand_string(cmdlines []string) {
+	for _, line := range cmdlines {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fmt.Println("\n>>>", line)
+		ll := strings.Fields(line)
+		com := exec.Command(ll[0], ll[1:]...)
+		com.Stdout = os.Stdout
+		com.Start()
+		com.Wait()
+	}
+}
+
+func Util_runcommand_string_string(cmdlines [][]string) {
+	for _, line := range cmdlines {
+		fmt.Println("\n>>>", line)
+		com := exec.Command(line[0], line[1:]...)
+		com.Stdout = os.Stdout
+		com.Start()
+		com.Wait()
+	}
+}
+
+func Util_create_start_script(cmdlines []string) {
+	outfile, err := os.Create("data/start.sh")
+	defer outfile.Close()
+	check(err)
+	for _, line := range cmdlines {
+		if strings.HasPrefix(line, "mongod") || strings.HasPrefix(line, "mongos") {
+			_, err := outfile.WriteString(line)
+			check(err)
+		}
+	}
+	outfile.Sync()
 }
 
 func Util_runcommand(cmdline string) string {

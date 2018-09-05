@@ -2,29 +2,63 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 )
 
-func ST_deploy_standalone(port int, auth bool) (string, string) {
-	var cmdline string
-	var mongod_call string
+func ST_mongod_dbpath(port int) []string {
+	return []string{"--dbpath", fmt.Sprintf("data/%d", port)}
+}
 
-	cmdline = Util_create_dbpath() + "\n"
-	cmdline += fmt.Sprintf("mkdir data/%d\n", port)
+func ST_mongod_port(port int) []string {
+	return []string{"--port", fmt.Sprintf("%d", port)}
+}
 
-	mongod_call = fmt.Sprintf("mongod --dbpath data/%d --port %d ", port, port)
-	mongod_call += fmt.Sprintf("--logpath data/%d/mongod.log --fork ", port)
+func ST_mongod_logpath(port int) []string {
+	return []string{"--logpath", fmt.Sprintf("data/%d/mongod.log", port)}
+}
 
+func ST_mongod_fork() []string {
+	return []string{"--fork"}
+}
+
+func ST_mongod_start() []string {
+	return []string{"start", "/b"}
+}
+
+func ST_mongo_adduser(port int) []string {
+	return []string{
+		"mongo", "admin",
+		"--port", fmt.Sprintf("%d", port),
+		"--eval", "db.createUser({user: 'user', pwd: 'password', roles: ['root']})",
+	}
+}
+
+func ST_deploy_standalone(port int, auth bool) [][]string {
+	var cmdlines [][]string
+	var mongo_call []string
+
+	mkdir_cmd := []string{"mkdir", "-p", fmt.Sprintf("data/%d", port)}
+
+	mongo_call = append(mongo_call, "mongod")
+	mongo_call = append(mongo_call, ST_mongod_dbpath(port)...)
+	mongo_call = append(mongo_call, ST_mongod_port(port)...)
+	mongo_call = append(mongo_call, ST_mongod_logpath(port)...)
 	if auth {
-		mongod_call += "--auth\n"
+		mongo_call = append(mongo_call, "--auth")
 	}
 
-	cmdline += mongod_call + "\n"
-
-	if auth {
-		cmdline += Util_create_first_user(port)
+	if runtime.GOOS != "windows" {
+		mongo_call = append(mongo_call, ST_mongod_fork()...)
+	} else {
+		mongo_call = append(ST_mongod_start(), mongo_call...)
 	}
 
-	// fmt.Print(cmdline)
-	// return mongod_call
-	return cmdline, mongod_call
+	cmdlines = append(cmdlines, mkdir_cmd)
+	cmdlines = append(cmdlines, mongo_call)
+
+	if auth {
+		cmdlines = append(cmdlines, ST_mongo_adduser(port))
+	}
+
+	return cmdlines
 }

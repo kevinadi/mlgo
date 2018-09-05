@@ -100,14 +100,13 @@ func main() {
 
 	// Standalone
 	if standaloneCommand.Parsed() {
-		st_cmd, st_call := ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
-		st_cmd += Util_start_script(st_call)
+		st_cmd_array := ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr)
 
 		if *standaloneScriptPtr {
-			fmt.Println(st_cmd)
+			Util_print_script(st_cmd_array)
 		} else {
-			fmt.Println(st_call)
-			Util_runcommand_stdout(st_cmd)
+			Util_runcommand_string_string(st_cmd_array)
+			//Util_create_start_script(st_cmd)
 		}
 	}
 
@@ -135,7 +134,9 @@ func main() {
 		rs_config_summary := rs_cmd
 
 		rs_cmd += fmt.Sprintf("\n")
+
 		rs_cmdlines, rs_calls := RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr)
+
 		rs_cmd += rs_cmdlines + "\n"
 		rs_cmd += fmt.Sprintf("\n")
 		rs_cmd += fmt.Sprintf("%s\n", Util_start_script(rs_calls))
