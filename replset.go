@@ -21,19 +21,21 @@ type ReplSet struct {
 	Num         int
 	Connstr     string
 	Cmdlines    [][]string
+	Script      bool
 }
 
-func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool) {
+func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, script bool) {
 	rs.Num = num
 	rs.ReplSetName = replsetname
 	rs.Port = port
 	rs.Auth = auth
 	rs.Config = config
+	rs.Script = script
 	//rs.parse_config()
 
 	for i := 0; i < rs.Num; i++ {
 		m_i := new(Mongod)
-		m_i.Init(port+i, auth, replsetname)
+		m_i.Init(port+i, auth, replsetname, false)
 		rs.Mongod = append(rs.Mongod, m_i)
 	}
 
@@ -146,23 +148,20 @@ func (rs *ReplSet) Cmd_adduser() {
 	Util_runcommand_string(rs.Mongod[0].Cmd_adduser())
 }
 
-func RS_deploy_replset(num int, port int, config string, replsetname string, auth bool, script bool) {
-	fmt.Printf("# Auth: %t\n", auth)
-	fmt.Printf("# Replica set nodes: %d\n", num)
-	fmt.Printf("# Nodes configuration: %s\n\n", config)
+func (rs *ReplSet) Deploy() {
+	fmt.Printf("# Auth: %t\n", rs.Auth)
+	fmt.Printf("# Replica set nodes: %d\n", rs.Num)
+	fmt.Printf("# Nodes configuration: %s\n\n", rs.Config)
 
-	rs := new(ReplSet)
-	rs.Init(num, port, config, replsetname, auth)
-
-	if script {
+	if rs.Script {
 		fmt.Println(Util_cmd_script(rs.Cmdlines))
 	} else {
-		if auth {
+		if rs.Auth {
 			rs.Create_keyfile()
 		}
 		Util_runcommand_string_string(rs.Cmdlines)
 		rs.Wait_for_primary()
-		if auth {
+		if rs.Auth {
 			rs.Cmd_adduser()
 		}
 		Util_create_start_script(rs.Cmdlines)

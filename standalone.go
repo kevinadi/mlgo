@@ -15,12 +15,14 @@ type Mongod struct {
 	Auth     bool
 	KeyFile  string
 	Cmdlines [][]string
+	Script   bool
 }
 
-func (m *Mongod) Init(port int, auth bool, replset string) {
+func (m *Mongod) Init(port int, auth bool, replset string, script bool) {
 	m.Dbpath = fmt.Sprintf("data/%d", port)
 	m.Port = port
 	m.Auth = auth
+	m.Script = script
 	if replset != "" {
 		m.ReplSet = replset
 	}
@@ -93,11 +95,8 @@ func (m *Mongod) Cmd_adduser() []string {
 	}
 }
 
-func ST_deploy_standalone(port int, auth bool, script bool) {
-	m := new(Mongod)
-	m.Init(port, auth, "")
-
-	if script {
+func (m *Mongod) Deploy() {
+	if m.Script {
 		fmt.Print(Util_cmd_script(m.Cmdlines))
 	} else {
 		Util_runcommand_string_string(m.Cmdlines)

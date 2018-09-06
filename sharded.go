@@ -2,13 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Sharded struct {
 	ShardSvr    []*ReplSet
+	Mongos      []*Mongos
 	ConfigSvr   *ReplSet
 	Port        int
 	Auth        bool
@@ -18,6 +23,66 @@ type Sharded struct {
 	ShardNum    int
 	Cmdlines    [][]string
 	Script      bool
+}
+
+type Mongos struct {
+	Auth     bool
+	Port     int
+	Config   string
+	Cmdlines [][]string
+}
+
+func (m *Mongos) Init(port int, config string, auth bool) {
+	m.Auth = auth
+	m.Port = port
+	m.Config = config
+
+	var cmdline []string
+	cmdline = []string{
+		"mongos",
+		"--port", strconv.Itoa(port),
+		"--configdb", config,
+		"--logpath", "data/mongos.log",
+	}
+	if auth {
+		cmdline = append(cmdline, "--keyFile", "data/keyfile.txt")
+	}
+	switch runtime.GOOS {
+	case "windows":
+		cmdline = append([]string{"start", "/b"}, cmdline...)
+	default:
+		cmdline = append(cmdline, []string{"--fork"}...)
+	}
+	m.Cmdlines = append(m.Cmdlines, cmdline)
+}
+
+func (m *Mongos) Wait_for_primary() {
+	var cmdline []string
+	cmdline = append(cmdline, []string{
+		"mongo",
+		"--port", strconv.Itoa(m.Port),
+		"--quiet",
+		"--eval", "db.isMaster()",
+	}...)
+
+	fmt.Println("Waiting for mongos...")
+	primary := false
+	i := 0
+	for !primary && i < 10 {
+		com := exec.Command(cmdline[0], cmdline[1:]...)
+		out, err := com.CombinedOutput()
+		if err != nil {
+			log.Println("isMaster on mongos failed with %s\n", err)
+		}
+		primary = strings.Contains(string(out), "\"ismaster\" : true")
+		time.Sleep(2 * time.Second)
+		i += 1
+	}
+
+	if !primary {
+		fmt.Println("Primary not found after 20 seconds")
+		os.Exit(1)
+	}
 }
 
 func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, numconfig int, auth bool, script bool) {
@@ -34,52 +99,37 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 	if sh.ShardConfig != "P" {
 		sh.ShardNum = len(sh.ShardConfig)
 	}
-	fmt.Println("Port:", sh.Port)
-	fmt.Println("Num Shards:", sh.NumShards)
-	fmt.Println("ShardSvr Num:", sh.ShardNum)
-	fmt.Println("ShardSvr Cfg:", sh.ShardConfig)
-	fmt.Println("ConfigSvr Num:", sh.NumConfig)
-	fmt.Println("Auth:", sh.Auth)
+	fmt.Println("# Port:", sh.Port)
+	fmt.Println("# Num Shards:", sh.NumShards)
+	fmt.Println("# ShardSvr Num:", sh.ShardNum)
+	fmt.Println("# ShardSvr Cfg:", sh.ShardConfig)
+	fmt.Println("# ConfigSvr Num:", sh.NumConfig)
+	fmt.Println("# Auth:", sh.Auth)
 	fmt.Println()
 
 	for i := 0; i < sh.NumShards; i++ {
 		sh_i := new(ReplSet)
 		rsname := fmt.Sprintf("shard%02d", i)
-		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth)
+		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth, sh.Script)
 		sh.ShardSvr = append(sh.ShardSvr, sh_i)
 	}
 
 	ConfigSvr := new(ReplSet)
 	rsconfig := "P" + strings.Repeat("S", numconfig-1)
-	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth)
+	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth, sh.Script)
 	sh.ConfigSvr = ConfigSvr
+
+	mongos := new(Mongos)
+	mongos.Init(sh.Port, sh.ConfigSvr.Connstr, sh.Auth)
+	sh.Mongos = append(sh.Mongos, mongos)
 
 	for i := 0; i < sh.NumShards; i++ {
 		sh.Cmdlines = append(sh.Cmdlines, sh.ShardSvr[i].Cmdlines...)
 	}
 	sh.Cmdlines = append(sh.Cmdlines, sh.ConfigSvr.Cmdlines...)
-	sh.Cmdlines = append(sh.Cmdlines, sh.Cmd_mongos())
+	//sh.Cmdlines = append(sh.Cmdlines, sh.Cmd_mongos())
+	sh.Cmdlines = append(sh.Cmdlines, mongos.Cmdlines...)
 
-}
-
-func (sh *Sharded) Cmd_mongos() []string {
-	var cmdline []string
-	cmdline = []string{
-		"mongos",
-		"--port", strconv.Itoa(sh.Port),
-		"--configdb", sh.ConfigSvr.Connstr,
-		"--logpath", "data/mongos.log",
-	}
-	if sh.Auth {
-		cmdline = append(cmdline, "--keyFile", "data/keyfile.txt")
-	}
-	switch runtime.GOOS {
-	case "windows":
-		cmdline = append([]string{"start", "/b"}, cmdline...)
-	default:
-		cmdline = append(cmdline, []string{"--fork"}...)
-	}
-	return cmdline
 }
 
 func (sh *Sharded) Cmd_addshards() [][]string {
@@ -111,9 +161,12 @@ func (sh *Sharded) Deploy() {
 		sh.ShardSvr[0].Create_keyfile()
 		for _, shard := range sh.ShardSvr {
 			Util_runcommand_string_string(shard.Cmdlines)
+			shard.Wait_for_primary()
 		}
 		Util_runcommand_string_string(sh.ConfigSvr.Cmdlines)
-		Util_runcommand_string(sh.Cmd_mongos())
+		sh.ConfigSvr.Wait_for_primary()
+		Util_runcommand_string_string(sh.Mongos[0].Cmdlines)
+		sh.Mongos[0].Wait_for_primary()
 		Util_runcommand_string_string(sh.Cmd_addshards())
 		if sh.Auth {
 			Util_runcommand_string(sh.Cmd_adduser())

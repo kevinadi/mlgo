@@ -98,12 +98,16 @@ func main() {
 
 	// Standalone
 	if standaloneCommand.Parsed() {
-		ST_deploy_standalone(*standalonePortPtr, *standaloneAuthPtr, *standaloneScriptPtr)
+		m := new(Mongod)
+		m.Init(*standalonePortPtr, *standaloneAuthPtr, "", *standaloneScriptPtr)
+		m.Deploy()
 	}
 
 	// Replica set
 	if replsetCommand.Parsed() {
-		RS_deploy_replset(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetScriptPtr)
+		rs := new(ReplSet)
+		rs.Init(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetScriptPtr)
+		rs.Deploy()
 	}
 
 	// Sharded cluster
@@ -111,49 +115,5 @@ func main() {
 		sh := new(Sharded)
 		sh.Init(*shardedPortPtr, *shardedNumPtr, *shardedShardsvrPtr, *shardedShardsvrConfigPtr, *shardedConfigSvrPtr, *shardedAuthPtr, *shardedScriptPtr)
 		sh.Deploy()
-
-		// var sh_cmd string = ""
-		// var shNum int = *shardedShardsvrPtr
-		// var shCfg string = strings.ToUpper(*shardedShardsvrConfigPtr)
-
-		// switch {
-		// case shNum != 1:
-		// 	shCfg = "P" + strings.Repeat("S", shNum-1)
-		// case shCfg != "P" && re_config.MatchString(shCfg):
-		// 	shNum = len(shCfg)
-		// case !re_config.MatchString(shCfg):
-		// 	fmt.Println("Invalid replica set configuration.")
-		// 	shardedCommand.PrintDefaults()
-		// 	os.Exit(1)
-		// }
-
-		// sh_cmd += fmt.Sprintf("# Auth: %t\n", *shardedAuthPtr)
-		// sh_cmd += fmt.Sprintf("# mongos port: %d\n", *shardedPortPtr)
-		// sh_cmd += fmt.Sprintf("# Number of shards: %d\n", *shardedNumPtr)
-		// sh_cmd += fmt.Sprintf("# ShardSvr replica set num: %d\n", shNum)
-		// sh_cmd += fmt.Sprintf("# ShardSvr configuration: %s\n", shCfg)
-		// sh_cmd += fmt.Sprintf("# Config servers: %d\n", *shardedConfigSvrPtr)
-		// sh_config_summary := sh_cmd
-
-		// sh_cmd += fmt.Sprintf("\n")
-		// if *shardedAuthPtr {
-		// 	sh_cmd += fmt.Sprintf(Util_create_dbpath()) + "\n"
-		// 	sh_cmd += fmt.Sprintf(Util_create_keyfile())
-		// }
-
-		// sh_shards, shardservers, shrd_calls := SH_deploy_shardsvr(*shardedNumPtr, shNum, shCfg, *shardedPortPtr+1, *shardedAuthPtr)
-		// sh_config, configservers, cfg_calls := SH_deploy_configsvr(*shardedConfigSvrPtr, *shardedPortPtr+(shNum*(*shardedNumPtr))+1, *shardedAuthPtr)
-		// sh_mongos, mongos_calls := SH_deploy_mongos(configservers, shardservers, *shardedPortPtr, *shardedAuthPtr)
-
-		// sh_cmd += sh_shards + "\n" + sh_config + "\n" + sh_mongos
-		// sh_cmd += fmt.Sprintf("\n")
-		// sh_cmd += fmt.Sprintf(Util_start_script(shrd_calls + "\n" + cfg_calls + "\n" + mongos_calls))
-
-		// if *shardedScriptPtr {
-		// 	fmt.Println(sh_cmd)
-		// } else {
-		// 	fmt.Println(sh_config_summary)
-		// 	Util_runcommand_stdout(sh_cmd)
-		// }
 	}
 }

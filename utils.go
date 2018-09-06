@@ -89,7 +89,12 @@ func Util_create_start_script(cmdlines [][]string) {
 }
 
 func Util_runcommand(cmdline string) string {
-	com := exec.Command("sh", "-c", cmdline)
+	var com *exec.Cmd
+	if runtime.GOOS != "windows" {
+		com = exec.Command("sh", "-c", cmdline)
+	} else {
+		com = exec.Command("cmd", "/c", cmdline)
+	}
 	comStdout, err := com.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
@@ -132,19 +137,28 @@ func Util_kill(what string) {
 	var cmdline string
 	var pids []string
 
-	ps_output := Util_ps(what)
-	fmt.Println(ps_output)
-	for _, m := range strings.Split(ps_output, "\n") {
-		pids = append(pids, strings.Split(m, " ")[0])
+	if runtime.GOOS != "windows" {
+		ps_output := Util_ps(what)
+		fmt.Println(ps_output)
+		for _, m := range strings.Split(ps_output, "\n") {
+			pids = append(pids, strings.Split(m, " ")[0])
+		}
+		cmdline = fmt.Sprintf("kill %s", strings.Join(pids, " "))
+	} else {
+		cmdline = "taskkill /f /im mongod.exe & taskkill /f /im mongos.exe"
 	}
-	cmdline = fmt.Sprintf("kill %s", strings.Join(pids, " "))
 
 	fmt.Println(cmdline)
 	Util_runcommand(cmdline)
 }
 
 func Util_rm() {
-	cmdline := "rm -rf data"
+	var cmdline string
+	if runtime.GOOS != "windows" {
+		cmdline = "rm -rf data"
+	} else {
+		cmdline = "rmdir /q /s data"
+	}
 	fmt.Println(cmdline)
 	Util_runcommand(cmdline)
 }
