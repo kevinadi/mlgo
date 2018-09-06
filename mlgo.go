@@ -26,13 +26,13 @@ func main() {
 	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 
 	// Sharded cluster
-	// shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
-	// shardedPortPtr := shardedCommand.Int("port", 27017, "start on this port")
-	// shardedNumPtr := shardedCommand.Int("num", 2, "run this many shards")
-	// shardedShardsvrPtr := shardedCommand.Int("shardsvr", 1, "run this many nodes per shard")
-	// shardedConfigSvrPtr := shardedCommand.Int("configsvr", 1, "run this many config servers")
-	// shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "P", "configuration of the shard replica set")
-	// shardedScriptPtr := shardedCommand.Bool("script", false, "print deployment script")
+	shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
+	shardedPortPtr := shardedCommand.Int("port", 27017, "start on this port")
+	shardedNumPtr := shardedCommand.Int("num", 2, "run this many shards")
+	shardedShardsvrPtr := shardedCommand.Int("shardsvr", 1, "run this many nodes per shard")
+	shardedConfigSvrPtr := shardedCommand.Int("configsvr", 1, "run this many config servers")
+	shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "P", "configuration of the shard replica set")
+	shardedScriptPtr := shardedCommand.Bool("script", false, "print deployment script")
 
 	// Verify that a subcommand has been provided
 	// os.Arg[0] is the main command
@@ -108,6 +108,10 @@ func main() {
 
 	// Sharded cluster
 	if shardedCommand.Parsed() {
+		sh := new(Sharded)
+		sh.Init(*shardedPortPtr, *shardedNumPtr, *shardedShardsvrPtr, *shardedShardsvrConfigPtr, *shardedConfigSvrPtr, *shardedAuthPtr, *shardedScriptPtr)
+		sh.Deploy()
+
 		// var sh_cmd string = ""
 		// var shNum int = *shardedShardsvrPtr
 		// var shCfg string = strings.ToUpper(*shardedShardsvrConfigPtr)

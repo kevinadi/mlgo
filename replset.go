@@ -29,7 +29,7 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 	rs.Port = port
 	rs.Auth = auth
 	rs.Config = config
-	rs.parse_config()
+	//rs.parse_config()
 
 	for i := 0; i < rs.Num; i++ {
 		m_i := new(Mongod)
