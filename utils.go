@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func Check(e error) {
@@ -55,15 +56,28 @@ func Util_cmd_script(cmd_array [][]string) string {
 }
 
 func Util_runcommand_string(line []string) {
+	var com *exec.Cmd
+	var err error
+
 	fmt.Println(" -- ", line)
 	if runtime.GOOS == "windows" {
 		line = append([]string{"cmd", "/c"}, line...)
 	}
-	com := exec.Command(line[0], line[1:]...)
-	com.Stdout = os.Stdout
-	com.Stderr = os.Stderr
-	com.Start()
-	com.Wait()
+
+	for i := 0; i < 5; i++ {
+		com = exec.Command(line[0], line[1:]...)
+		com.Stdout = os.Stdout
+		com.Stderr = os.Stderr
+
+		com.Start()
+		err = com.Wait()
+		if err != nil {
+			fmt.Println("Retrying command...")
+			time.Sleep(2 * time.Second)
+		} else {
+			break
+		}
+	}
 }
 
 func Util_runcommand_string_string(cmdlines [][]string) {
