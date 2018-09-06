@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"regexp"
-	"strings"
 )
 
 func main() {
@@ -104,23 +102,8 @@ func main() {
 	}
 
 	// Replica set
-	re_config, _ := regexp.Compile("(?i)PS*A*")
 	if replsetCommand.Parsed() {
-		var rsNum int = *replsetNumPtr
-		var rsCfg string = strings.ToUpper(*replsetConfigPtr)
-
-		switch {
-		case rsNum != 3:
-			rsCfg = "P" + strings.Repeat("S", rsNum-1)
-		case rsCfg != "PSS" && re_config.MatchString(rsCfg):
-			rsNum = len(rsCfg)
-		case !re_config.MatchString(rsCfg):
-			fmt.Println("Invalid replica set configuration.")
-			replsetCommand.PrintDefaults()
-			os.Exit(1)
-		}
-
-		RS_deploy_replset(rsNum, *replsetPortPtr, rsCfg, *replsetNamePtr, *replsetAuthPtr, *replsetScriptPtr)
+		RS_deploy_replset(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetScriptPtr)
 	}
 
 	// Sharded cluster

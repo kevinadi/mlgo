@@ -5,69 +5,103 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func RS_create_keyfile() {
-	Util_runcommand_string([]string{"mkdir", "data"})
+type ReplSet struct {
+	Mongod      []*Mongod
+	ReplSetName string
+	Port        int
+	Auth        bool
+	Config      string
+	Num         int
+	Connstr     string
+	Cmdlines    [][]string
+}
 
-	outfile, err := os.Create("data/keyfile.txt")
-	defer outfile.Close()
-	Check(err)
+func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool) {
+	rs.Num = num
+	rs.ReplSetName = replsetname
+	rs.Port = port
+	rs.Auth = auth
+	rs.Config = config
+	rs.parse_config()
 
-	_, err = outfile.WriteString(Util_randstring(40))
-	Check(err)
+	for i := 0; i < rs.Num; i++ {
+		m_i := new(Mongod)
+		m_i.Init(port+i, auth, replsetname)
+		rs.Mongod = append(rs.Mongod, m_i)
+	}
 
-	if runtime.GOOS != "windows" {
-		err = outfile.Chmod(0600)
-		Check(err)
+	rs.Cmdlines = rs.Cmd_mongod()
+	rs.Cmdlines = append(rs.Cmdlines, rs.Cmd_init())
+
+	var hosts []string
+	for i := 0; i < num; i++ {
+		hosts = append(hosts, fmt.Sprintf("localhost:%d", port+i))
+	}
+	rs.Connstr = replsetname + "/" + strings.Join(hosts, ",")
+}
+
+func (rs *ReplSet) parse_config() {
+	re_config := regexp.MustCompile("(?i)^PS*A*$")
+	switch {
+	case rs.Num != 3:
+		rs.Config = "P" + strings.Repeat("S", rs.Num-1)
+	case rs.Config != "PSS" && re_config.MatchString(rs.Config):
+		rs.Num = len(rs.Config)
+	case !re_config.MatchString(rs.Config):
+		fmt.Println("Invalid replica set configuration:", rs.Config)
+		os.Exit(1)
 	}
 }
 
-func RS_create_dbpath(num int, port int) [][]string {
+func (rs *ReplSet) Cmd_mongod() [][]string {
 	var cmdline [][]string
-	for i := port; i < port+num; i++ {
-		cmdline = append(cmdline, ST_mkdir_cmd(i))
+	for i := 0; i < rs.Num; i++ {
+		cmdline = append(cmdline, rs.Mongod[i].Cmd_mkdir())
+		cmdline = append(cmdline, rs.Mongod[i].Cmd_mongod())
 	}
 	return cmdline
 }
 
-func RS_init_replset(config string, port int, replsetname string) []string {
+func (rs *ReplSet) Cmd_init() []string {
 	var conf string
 	var members []string
 	var initcmd []string
 
-	for i, m := range config {
+	for i, m := range rs.Config {
 		switch strings.ToUpper(string(m)) {
 		case "P":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:2}", i, port+i))
+			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:2}", i, rs.Port+i))
 		case "S":
 			switch {
 			case i > 0 && i < 7:
-				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d'}", i, port+i))
+				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d'}", i, rs.Port+i))
 			case i >= 7:
-				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0}", i, port+i))
+				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0}", i, rs.Port+i))
 			}
 		case "A":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', arbiterOnly:1}", i, port+i))
+			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', arbiterOnly:1}", i, rs.Port+i))
 		}
 	}
 
-	conf += fmt.Sprintf("{_id:'%s', members:[%s]}", replsetname, strings.Join(members, ", "))
+	conf += fmt.Sprintf("{_id:'%s', members:[%s]}", rs.ReplSetName, strings.Join(members, ", "))
 	eval := fmt.Sprintf("rs.initiate(%s)", conf)
-	initcmd = append(initcmd, []string{"mongo", "--port", strconv.Itoa(port), "--eval", eval}...)
+	initcmd = append(initcmd, []string{"mongo", "--port", strconv.Itoa(rs.Port), "--eval", eval}...)
 
 	return initcmd
 }
 
-func RS_wait_for_primary(port int) {
+func (rs *ReplSet) Wait_for_primary() {
 	var cmdline []string
 	cmdline = append(cmdline, []string{
 		"mongo",
-		"--port", strconv.Itoa(port),
+		"--port", strconv.Itoa(rs.Port),
 		"--quiet",
 		"--eval", "db.isMaster()",
 	}...)
@@ -92,41 +126,24 @@ func RS_wait_for_primary(port int) {
 	}
 }
 
-func RS_call_mongod(num int, port int, config string, replsetname string, auth bool) [][]string {
-	var cmdlines [][]string
+func (rs *ReplSet) Create_keyfile() {
+	Util_runcommand_string([]string{"mkdir", "data"})
 
-	for i := 0; i < num; i++ {
-		mongod_cmd := ST_mongod_cmd(port+i, auth)
-		mongod_cmd = append(mongod_cmd, []string{"--replSet", replsetname}...)
-		if auth {
-			mongod_cmd = append(mongod_cmd, []string{"--keyFile", "data/keyfile.txt"}...)
-		}
-		if strings.HasPrefix(replsetname, "shard") {
-			mongod_cmd = append(mongod_cmd, []string{"--shardsvr"}...)
-		}
-		if strings.HasPrefix(replsetname, "config") {
-			mongod_cmd = append(mongod_cmd, []string{"--configsvr"}...)
-		}
-		cmdlines = append(cmdlines, mongod_cmd)
+	outfile, err := os.Create("data/keyfile.txt")
+	defer outfile.Close()
+	Check(err)
+
+	_, err = outfile.WriteString(Util_randstring(40))
+	Check(err)
+
+	if runtime.GOOS != "windows" {
+		err = outfile.Chmod(0600)
+		Check(err)
 	}
-
-	return cmdlines
 }
 
-func RS_commandlines(num int, port int, config string, replsetname string, auth bool) ([][]string, string) {
-	var cmdlines [][]string
-	var hosts []string
-
-	cmdlines = append(cmdlines, RS_create_dbpath(num, port)...)
-	cmdlines = append(cmdlines, RS_call_mongod(num, port, config, replsetname, auth)...)
-	cmdlines = append(cmdlines, RS_init_replset(config, port, replsetname))
-
-	for i := 0; i < num; i++ {
-		hosts = append(hosts, fmt.Sprintf("localhost:%d", port+i))
-	}
-	connstr := replsetname + "/" + strings.Join(hosts, ",")
-
-	return cmdlines, connstr
+func (rs *ReplSet) Cmd_adduser() {
+	Util_runcommand_string(rs.Mongod[0].Cmd_adduser())
 }
 
 func RS_deploy_replset(num int, port int, config string, replsetname string, auth bool, script bool) {
@@ -134,20 +151,21 @@ func RS_deploy_replset(num int, port int, config string, replsetname string, aut
 	fmt.Printf("# Replica set nodes: %d\n", num)
 	fmt.Printf("# Nodes configuration: %s\n\n", config)
 
-	cmdlines, connstr := RS_commandlines(num, port, config, replsetname, auth)
+	rs := new(ReplSet)
+	rs.Init(num, port, config, replsetname, auth)
 
 	if script {
-		fmt.Println(Util_cmd_script(cmdlines))
+		fmt.Println(Util_cmd_script(rs.Cmdlines))
 	} else {
 		if auth {
-			RS_create_keyfile()
+			rs.Create_keyfile()
 		}
-		Util_runcommand_string_string(cmdlines)
-		RS_wait_for_primary(port)
+		Util_runcommand_string_string(rs.Cmdlines)
+		rs.Wait_for_primary()
 		if auth {
-			Util_runcommand_string(ST_mongo_adduser(port))
+			rs.Cmd_adduser()
 		}
-		Util_create_start_script(cmdlines)
-		fmt.Println(" -- ", "connstr :", connstr)
+		Util_create_start_script(rs.Cmdlines)
+		fmt.Println(" -- ", "connstr :", rs.Connstr)
 	}
 }
