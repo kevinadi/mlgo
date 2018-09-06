@@ -21,7 +21,7 @@ func main() {
 	replsetAuthPtr := replsetCommand.Bool("auth", false, "use auth")
 	replsetPortPtr := replsetCommand.Int("port", 27017, "start on this port")
 	replsetNumPtr := replsetCommand.Int("num", 3, "run this many nodes")
-	replsetConfigPtr := replsetCommand.String("cfg", "PSS", "configuration of the set")
+	replsetConfigPtr := replsetCommand.String("cfg", "", "configuration of the set")
 	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
 	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 
@@ -31,7 +31,7 @@ func main() {
 	shardedNumPtr := shardedCommand.Int("num", 2, "run this many shards")
 	shardedShardsvrPtr := shardedCommand.Int("shardsvr", 1, "run this many nodes per shard")
 	shardedConfigSvrPtr := shardedCommand.Int("configsvr", 1, "run this many config servers")
-	shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "P", "configuration of the shard replica set")
+	shardedShardsvrConfigPtr := shardedCommand.String("shardcfg", "", "configuration of the shard replica set")
 	shardedScriptPtr := shardedCommand.Bool("script", false, "print deployment script")
 
 	// Verify that a subcommand has been provided

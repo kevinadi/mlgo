@@ -31,7 +31,7 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 	rs.Auth = auth
 	rs.Config = config
 	rs.Script = script
-	//rs.parse_config()
+	rs.parse_config()
 
 	for i := 0; i < rs.Num; i++ {
 		m_i := new(Mongod)
@@ -52,7 +52,7 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 func (rs *ReplSet) parse_config() {
 	re_config := regexp.MustCompile("(?i)^PS*A*$")
 	switch {
-	case rs.Num != 3:
+	case rs.Config == "" || rs.Num != 3:
 		rs.Config = "P" + strings.Repeat("S", rs.Num-1)
 	case rs.Config != "PSS" && re_config.MatchString(rs.Config):
 		rs.Num = len(rs.Config)
@@ -149,9 +149,11 @@ func (rs *ReplSet) Cmd_adduser() {
 }
 
 func (rs *ReplSet) Deploy() {
-	fmt.Printf("# Auth: %t\n", rs.Auth)
-	fmt.Printf("# Replica set nodes: %d\n", rs.Num)
-	fmt.Printf("# Nodes configuration: %s\n\n", rs.Config)
+	fmt.Println("# Port:", rs.Port)
+	fmt.Println("# Num nodes:", rs.Num)
+	fmt.Println("# Configuration:", rs.Config)
+	fmt.Println("# Auth:", rs.Auth)
+	fmt.Println()
 
 	if rs.Script {
 		fmt.Println(Util_cmd_script(rs.Cmdlines))

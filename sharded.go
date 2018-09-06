@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -93,12 +94,8 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 	sh.Port = port
 	sh.Auth = auth
 	sh.Script = script
-	if sh.ShardNum != 1 {
-		sh.ShardConfig = "P" + strings.Repeat("S", sh.ShardNum-1)
-	}
-	if sh.ShardConfig != "P" {
-		sh.ShardNum = len(sh.ShardConfig)
-	}
+	sh.parse_config()
+
 	fmt.Println("# Port:", sh.Port)
 	fmt.Println("# Num Shards:", sh.NumShards)
 	fmt.Println("# ShardSvr Num:", sh.ShardNum)
@@ -127,9 +124,21 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 		sh.Cmdlines = append(sh.Cmdlines, sh.ShardSvr[i].Cmdlines...)
 	}
 	sh.Cmdlines = append(sh.Cmdlines, sh.ConfigSvr.Cmdlines...)
-	//sh.Cmdlines = append(sh.Cmdlines, sh.Cmd_mongos())
 	sh.Cmdlines = append(sh.Cmdlines, mongos.Cmdlines...)
 
+}
+
+func (sh *Sharded) parse_config() {
+	re_config := regexp.MustCompile("(?i)^PS*A*$")
+	switch {
+	case sh.ShardConfig == "" || sh.ShardNum != 1:
+		sh.ShardConfig = "P" + strings.Repeat("S", sh.ShardNum-1)
+	case sh.ShardConfig != "P" && re_config.MatchString(sh.ShardConfig):
+		sh.ShardNum = len(sh.ShardConfig)
+	case !re_config.MatchString(sh.ShardConfig):
+		fmt.Println("Invalid replica set configuration:", sh.ShardConfig)
+		os.Exit(1)
+	}
 }
 
 func (sh *Sharded) Cmd_addshards() [][]string {
