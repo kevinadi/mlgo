@@ -69,7 +69,7 @@ func (m *Mongos) Wait_for_primary() {
 	fmt.Println("Waiting for mongos...")
 	primary := false
 	i := 0
-	for !primary && i < 10 {
+	for !primary && i < 20 {
 		com := exec.Command(cmdline[0], cmdline[1:]...)
 		out, err := com.CombinedOutput()
 		if err != nil {
@@ -81,7 +81,7 @@ func (m *Mongos) Wait_for_primary() {
 	}
 
 	if !primary {
-		fmt.Println("Primary not found after 20 seconds")
+		fmt.Println("Primary not found after 40 seconds")
 		os.Exit(1)
 	}
 }

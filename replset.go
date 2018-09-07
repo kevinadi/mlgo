@@ -111,7 +111,7 @@ func (rs *ReplSet) Wait_for_primary() {
 	fmt.Println("Waiting for primary...")
 	primary := false
 	i := 0
-	for !primary && i < 10 {
+	for !primary && i < 20 {
 		com := exec.Command(cmdline[0], cmdline[1:]...)
 		out, err := com.CombinedOutput()
 		if err != nil {
@@ -123,7 +123,7 @@ func (rs *ReplSet) Wait_for_primary() {
 	}
 
 	if !primary {
-		fmt.Println("Primary not found after 20 seconds")
+		fmt.Println("Primary not found after 40 seconds")
 		os.Exit(1)
 	}
 }
@@ -153,6 +153,7 @@ func (rs *ReplSet) Deploy() {
 	fmt.Println("# Num nodes:", rs.Num)
 	fmt.Println("# Configuration:", rs.Config)
 	fmt.Println("# Auth:", rs.Auth)
+	fmt.Println("# Connection string:", rs.Connstr)
 	fmt.Println()
 
 	if rs.Script {

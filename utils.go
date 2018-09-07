@@ -55,11 +55,20 @@ func Util_cmd_script(cmd_array [][]string) string {
 	return script
 }
 
+func Util_findstr(hay []string, needle string) bool {
+	for _, l := range hay {
+		if l == needle {
+			return true
+		}
+	}
+	return false
+}
+
 func Util_runcommand_string(line []string) {
 	var com *exec.Cmd
 	var err error
 
-	fmt.Println(" -- ", line)
+	fmt.Println(">>>", line)
 	if runtime.GOOS == "windows" {
 		line = append([]string{"cmd", "/c"}, line...)
 	}
@@ -72,8 +81,13 @@ func Util_runcommand_string(line []string) {
 		com.Start()
 		err = com.Wait()
 		if err != nil {
-			fmt.Println("Retrying command...")
-			time.Sleep(2 * time.Second)
+			if Util_findstr(line, "mongo") {
+				fmt.Println("Retrying command...")
+				time.Sleep(2 * time.Second)
+			} else {
+				fmt.Println("Command", strings.Join(line, " "), "failed with", err)
+				os.Exit(1)
+			}
 		} else {
 			break
 		}
