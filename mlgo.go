@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+const Datadir = "mlgo-data"
+
 func main() {
 	// Subcommands
 	standaloneCommand := flag.NewFlagSet("standalone", flag.ExitOnError)

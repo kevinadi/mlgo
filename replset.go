@@ -129,9 +129,9 @@ func (rs *ReplSet) Wait_for_primary() {
 }
 
 func (rs *ReplSet) Create_keyfile() {
-	Util_runcommand_string([]string{"mkdir", "data"})
+	Util_runcommand_string([]string{"mkdir", fmt.Sprintf("%s", Datadir)})
 
-	outfile, err := os.Create("data/keyfile.txt")
+	outfile, err := os.Create(fmt.Sprintf("%s/keyfile.txt", Datadir))
 	defer outfile.Close()
 	Check(err)
 

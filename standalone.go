@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -19,7 +21,11 @@ type Mongod struct {
 }
 
 func (m *Mongod) Init(port int, auth bool, replset string, script bool) {
-	m.Dbpath = fmt.Sprintf("data/%d", port)
+	currdir, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.Dbpath = fmt.Sprintf("%s/%s/%d", currdir, Datadir, port)
 	m.Port = port
 	m.Auth = auth
 	m.Script = script
@@ -29,7 +35,7 @@ func (m *Mongod) Init(port int, auth bool, replset string, script bool) {
 	if replset != "" && auth {
 		m.KeyFile = "data/keyfile.txt"
 	}
-	m.Logpath = fmt.Sprintf("data/%d/mongod.log", port)
+	m.Logpath = fmt.Sprintf("%s/%d/mongod.log", Datadir, port)
 
 	m.Cmdlines = append(m.Cmdlines, m.Cmd_mkdir())
 	m.Cmdlines = append(m.Cmdlines, m.Cmd_mongod())
@@ -56,7 +62,7 @@ func (m *Mongod) Cmd_mongod() []string {
 		}...)
 		if m.Auth {
 			mongod_call = append(mongod_call, []string{
-				"--keyFile", "data/keyfile.txt",
+				"--keyFile", fmt.Sprintf("%s/keyfile.txt", Datadir),
 			}...)
 		}
 		if strings.HasPrefix(m.ReplSet, "shard") {
@@ -80,9 +86,9 @@ func (m *Mongod) Cmd_mkdir() []string {
 	var cmdline []string
 	switch runtime.GOOS {
 	case "windows":
-		cmdline = []string{"mkdir", fmt.Sprintf("data\\%d", m.Port)}
+		cmdline = []string{"mkdir", fmt.Sprintf("%s\\%d", Datadir, m.Port)}
 	default:
-		cmdline = []string{"mkdir", "-p", fmt.Sprintf("data/%d", m.Port)}
+		cmdline = []string{"mkdir", "-p", fmt.Sprintf("%s/%d", Datadir, m.Port)}
 	}
 	return cmdline
 }

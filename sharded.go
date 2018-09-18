@@ -43,10 +43,10 @@ func (m *Mongos) Init(port int, config string, auth bool) {
 		"mongos",
 		"--port", strconv.Itoa(port),
 		"--configdb", config,
-		"--logpath", "data/mongos.log",
+		"--logpath", fmt.Sprintf("%s/mongos.log", Datadir),
 	}
 	if auth {
-		cmdline = append(cmdline, "--keyFile", "data/keyfile.txt")
+		cmdline = append(cmdline, "--keyFile", fmt.Sprintf("%s/keyfile.txt", Datadir))
 	}
 	switch runtime.GOOS {
 	case "windows":

@@ -101,7 +101,7 @@ func Util_runcommand_string_string(cmdlines [][]string) {
 }
 
 func Util_create_start_script(cmdlines [][]string) {
-	outfile, err := os.Create("data/start.sh")
+	outfile, err := os.Create(fmt.Sprintf("%s/start.sh", Datadir))
 	defer outfile.Close()
 	Check(err)
 
@@ -145,7 +145,7 @@ func Util_runcommand_stdout(cmdline string) {
 
 func Util_create_dbpath() string {
 	var cmdline string
-	cmdline = "mkdir data"
+	cmdline = fmt.Sprintf("mkdir %s", Datadir)
 	return cmdline
 }
 
@@ -183,9 +183,9 @@ func Util_kill(what string) {
 func Util_rm() {
 	var cmdline string
 	if runtime.GOOS != "windows" {
-		cmdline = "rm -rf data"
+		cmdline = fmt.Sprintf("rm -rf %s", Datadir)
 	} else {
-		cmdline = "rmdir /q /s data"
+		cmdline = fmt.Sprintf("rmdir /q /s %s", Datadir)
 	}
 	fmt.Println(cmdline)
 	Util_runcommand(cmdline)
@@ -200,7 +200,7 @@ func Util_create_first_user(port int) string {
 
 func Util_start_script(script string) string {
 	cmdline := "########\n"
-	cmdline += "cat << EOF > data/start.sh\n"
+	cmdline += fmt.Sprintf("cat << EOF > %s/start.sh\\n", Datadir)
 	cmdline += script + "\n"
 	cmdline += "EOF"
 	return cmdline
@@ -209,10 +209,10 @@ func Util_start_script(script string) string {
 func Util_start_process(what string) {
 	var cmdline string
 	if what != "" {
-		cmdline = fmt.Sprintf("cat data/start.sh | grep %s | sh", what)
+		cmdline = fmt.Sprintf("cat %s/start.sh | grep %s | sh", Datadir, what)
 		fmt.Println("Starting", what, "...")
 	} else {
-		cmdline = fmt.Sprintf("cat data/start.sh | sh")
+		cmdline = fmt.Sprintf("cat %s/start.sh | sh", Datadir)
 		fmt.Println("Starting all processes ...")
 	}
 	fmt.Println(Util_runcommand(cmdline))
