@@ -54,10 +54,10 @@ func main() {
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
 		fmt.Println(helptext)
 		if ps := Util_ps(""); ps != "" {
-			fmt.Println("Running processes:")
+			fmt.Println("Running processes under", Util_guess_dbpath(ps), ":")
 			fmt.Println(ps)
 		}
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	// Switch on the subcommand

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -147,6 +148,17 @@ func Util_create_dbpath() string {
 	var cmdline string
 	cmdline = fmt.Sprintf("mkdir %s", Datadir)
 	return cmdline
+}
+
+func Util_guess_dbpath(line string) string {
+	var output string
+	regexstring := fmt.Sprintf("--dbpath ([^ ]+)/%s/[0-9]+ ", Datadir)
+	dbpath := regexp.MustCompile(regexstring)
+	matches := dbpath.FindStringSubmatch(line)
+	if len(matches) > 1 {
+		output = matches[1]
+	}
+	return output
 }
 
 func Util_ps(what string) string {
