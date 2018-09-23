@@ -8,6 +8,11 @@ import (
 
 const Datadir = "mlgo-data"
 
+var (
+	version string
+	date    string
+)
+
 func main() {
 	// Subcommands
 	standaloneCommand := flag.NewFlagSet("standalone", flag.ExitOnError)
@@ -41,7 +46,8 @@ func main() {
 	// os.Arg[1] will be the subcommand
 	if len(os.Args) < 2 {
 		var helptext string
-		helptext = "Usage:\n"
+		helptext = fmt.Sprintf("%s %s %s\n\n",os.Args[0], version, date)
+		helptext += "Usage:\n"
 		helptext += "  standalone (st) -- run a standalone node\n"
 		helptext += "  replset (rs) -- run a replica set\n"
 		helptext += "  sharded (sh) -- run a sharded cluster\n"
@@ -56,6 +62,8 @@ func main() {
 		if ps := Util_ps(""); ps != "" {
 			fmt.Println("Running processes under", Util_guess_dbpath(ps), ":")
 			fmt.Println(ps)
+		} else {
+			fmt.Println("No running processes")
 		}
 		os.Exit(0)
 	}
