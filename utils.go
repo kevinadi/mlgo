@@ -28,17 +28,6 @@ func Util_randstring(num int) string {
 	return string(randstr)
 }
 
-func Util_create_keyfile() string {
-	var cmdline string
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	b := make([]byte, 40)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	cmdline = fmt.Sprintf("echo %s > data/keyfile.txt && chmod 600 data/keyfile.txt", string(b))
-	return cmdline
-}
-
 func Util_cmd_script(cmd_array [][]string) string {
 	var script string
 	for _, line := range cmd_array {
@@ -135,21 +124,6 @@ func Util_runcommand(cmdline string) string {
 	return strings.TrimSpace(string(output))
 }
 
-func Util_runcommand_stdout(cmdline string) {
-	com := exec.Command("sh", "-c", cmdline)
-	com.Stdout = os.Stdout
-	if err := com.Start(); err != nil {
-		log.Fatal(err)
-	}
-	com.Wait()
-}
-
-func Util_create_dbpath() string {
-	var cmdline string
-	cmdline = fmt.Sprintf("mkdir %s", Datadir)
-	return cmdline
-}
-
 func Util_guess_dbpath(line string) string {
 	var output string
 	regexstring := fmt.Sprintf("--dbpath ([^ ]+)/%s/[0-9]+ ", Datadir)
@@ -230,21 +204,6 @@ func Util_rm() {
 	}
 	fmt.Println(cmdline)
 	Util_runcommand(cmdline)
-}
-
-func Util_create_first_user(port int) string {
-	user := "{user: 'user', pwd: 'password', roles: ['root']}"
-	cmdline := fmt.Sprintf("mongo --host localhost --port %d admin ", port)
-	cmdline += fmt.Sprintf("--eval \"db.createUser(%s)\"", user)
-	return cmdline + "\n"
-}
-
-func Util_start_script(script string) string {
-	cmdline := "########\n"
-	cmdline += fmt.Sprintf("cat << EOF > %s/start.sh\\n", Datadir)
-	cmdline += script + "\n"
-	cmdline += "EOF"
-	return cmdline
 }
 
 func Util_start_process(what string) {
