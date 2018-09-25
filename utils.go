@@ -161,6 +161,35 @@ func Util_guess_dbpath(line string) string {
 	return output
 }
 
+func Util_list_dbpath(lines []string) []string {
+	var output []string
+	var pathlist = map[string]bool{}
+	for _, line := range lines {
+		pathlist[Util_guess_dbpath(line)] = true
+	}
+	for k, _ := range pathlist {
+		output = append(output, k)
+	}
+	return output
+}
+
+func Util_list_all_dbpath(ps string) string {
+	var output []string
+	pslist := strings.Split(ps, "\n")
+	dbpaths := Util_list_dbpath(pslist)
+
+	for _, path := range dbpaths {
+		output = append(output, fmt.Sprintf("Running processes under %s:", path))
+		for _, cmd := range pslist {
+			if strings.Contains(cmd, path) {
+				output = append(output, cmd)
+			}
+		}
+		output = append(output, "")
+	}
+	return strings.Join(output, "\n")
+}
+
 func Util_ps(what string) string {
 	var output_lines []string
 	cmdline := "ps -Ao 'pid,command' | grep -v 'grep .* mongod' | grep '\\smongo[ds]\\s'"
