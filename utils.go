@@ -177,9 +177,14 @@ func Util_list_all_dbpath(ps string) string {
 	var output []string
 	pslist := strings.Split(ps, "\n")
 	dbpaths := Util_list_dbpath(pslist)
+	pwd, _ := os.Getwd()
 
 	for _, path := range dbpaths {
-		output = append(output, fmt.Sprintf("Running processes under %s:", path))
+		if path == pwd {
+			output = append(output, fmt.Sprintf("Running processes under %s (current directory)", path))
+		} else {
+			output = append(output, fmt.Sprintf("Running processes under %s", path))
+		}
 		for _, cmd := range pslist {
 			if strings.Contains(cmd, path) {
 				output = append(output, cmd)
