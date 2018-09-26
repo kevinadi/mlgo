@@ -22,15 +22,17 @@ type ReplSet struct {
 	Connstr     string
 	Cmdlines    [][]string
 	Script      bool
+	Noinit      bool
 }
 
-func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, script bool) {
+func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool) {
 	rs.Num = num
 	rs.ReplSetName = replsetname
 	rs.Port = port
 	rs.Auth = auth
 	rs.Config = config
 	rs.Script = script
+	rs.Noinit = noinit
 	rs.parse_config()
 
 	for i := 0; i < rs.Num; i++ {
@@ -40,7 +42,9 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 	}
 
 	rs.Cmdlines = rs.Cmd_mongod()
-	rs.Cmdlines = append(rs.Cmdlines, rs.Cmd_init())
+	if !rs.Noinit {
+		rs.Cmdlines = append(rs.Cmdlines, rs.Cmd_init())
+	}
 
 	var hosts []string
 	for i := 0; i < num; i++ {
@@ -163,7 +167,9 @@ func (rs *ReplSet) Deploy() {
 			rs.Create_keyfile()
 		}
 		Util_runcommand_string_string(rs.Cmdlines)
-		rs.Wait_for_primary()
+		if !rs.Noinit {
+			rs.Wait_for_primary()
+		}
 		if rs.Auth {
 			rs.Cmd_adduser()
 		}
