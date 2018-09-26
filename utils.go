@@ -209,11 +209,26 @@ func Util_ps(what string) string {
 
 func Util_kill(what string) {
 	var cmdline string
+	var ps_output string
 	var pids []string
 
 	if runtime.GOOS != "windows" {
-		ps_output := Util_ps(what)
-		fmt.Println(ps_output)
+		if what == "" {
+			pwd, _ := os.Getwd()
+			dbpath_pwd := fmt.Sprintf("%s/%s/", pwd, Datadir)
+
+			ps_output = Util_ps(dbpath_pwd)
+
+			if ps_output == "" {
+				fmt.Println("No processes running under current directory")
+				os.Exit(1)
+			}
+		} else if what == "all" {
+			ps_output = Util_ps("")
+		} else {
+			ps_output = Util_ps(what)
+		}
+
 		for _, m := range strings.Split(ps_output, "\n") {
 			pids = append(pids, strings.Split(m, " ")[0])
 		}
@@ -222,7 +237,8 @@ func Util_kill(what string) {
 		cmdline = "taskkill /f /im mongod.exe & taskkill /f /im mongos.exe"
 	}
 
-	fmt.Println(cmdline)
+	fmt.Println("Killing processes...")
+	fmt.Println(ps_output)
 	Util_runcommand(cmdline)
 }
 

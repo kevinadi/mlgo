@@ -46,7 +46,7 @@ func main() {
 	// os.Arg[1] will be the subcommand
 	if len(os.Args) < 2 {
 		var helptext string
-		helptext = fmt.Sprintf("%s %s %s\n\n",os.Args[0], version, date)
+		helptext = fmt.Sprintf("%s %s %s\n\n", os.Args[0], version, date)
 		helptext += "Usage:\n"
 		helptext += "  standalone (st) -- run a standalone node\n"
 		helptext += "  replset (rs) -- run a replica set\n"
@@ -54,8 +54,8 @@ func main() {
 		helptext += "\n"
 		helptext += "  ps [criteria] -- show running mongod/mongos\n"
 		helptext += "  start [criteria] -- start some mongod/mongos using the start.sh script\n"
-		helptext += "  kill [criteria] -- kill running mongod/mongos\n"
-		helptext += "  rm -- remove the data/ directory\n"
+		helptext += "  kill [all|criteria] -- kill running mongod/mongos under the current directory\n"
+		helptext += "  rm -- remove the data directory\n"
 		helptext += "\n"
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
 		fmt.Println(helptext)
@@ -96,6 +96,7 @@ func main() {
 		} else {
 			Util_kill("")
 		}
+
 	case "rm":
 		Util_rm()
 	case "standalone", "st":
