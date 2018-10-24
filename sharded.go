@@ -38,12 +38,11 @@ func (m *Mongos) Init(port int, config string, auth bool) {
 	m.Port = port
 	m.Config = config
 
-	var cmdline []string
-	cmdline = []string{
+	cmdline := []string{
 		"mongos",
 		"--port", strconv.Itoa(port),
 		"--configdb", config,
-		"--logpath", fmt.Sprintf("%s/mongos.log", Datadir),
+		"--logpath", fmt.Sprintf("%s/27017/mongos.log", Datadir),
 	}
 	if auth {
 		cmdline = append(cmdline, "--keyFile", fmt.Sprintf("%s/keyfile.txt", Datadir))
@@ -54,6 +53,10 @@ func (m *Mongos) Init(port int, config string, auth bool) {
 	default:
 		cmdline = append(cmdline, []string{"--fork"}...)
 	}
+
+	m.Cmdlines = append(m.Cmdlines, []string{
+		"mkdir", fmt.Sprintf("%s/27017", Datadir),
+	})
 	m.Cmdlines = append(m.Cmdlines, cmdline)
 }
 
