@@ -107,13 +107,13 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 	for i := 0; i < sh.NumShards; i++ {
 		sh_i := new(ReplSet)
 		rsname := fmt.Sprintf("shard%02d", i)
-		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth, true, sh.Script)
+		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth, false, sh.Script)
 		sh.ShardSvr = append(sh.ShardSvr, sh_i)
 	}
 
 	ConfigSvr := new(ReplSet)
 	rsconfig := "P" + strings.Repeat("S", numconfig-1)
-	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth, true, sh.Script)
+	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth, false, sh.Script)
 	sh.ConfigSvr = ConfigSvr
 
 	mongos := new(Mongos)
