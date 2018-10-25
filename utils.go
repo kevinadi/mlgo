@@ -139,10 +139,23 @@ func Util_list_dbpath(lines []string) []string {
 	var output []string
 	var pathlist = map[string]bool{}
 	for _, line := range lines {
-		pathlist[Util_guess_dbpath(line)] = true
+		guess_path := Util_guess_dbpath(line)
+		if guess_path != "" {
+			pathlist[guess_path] = true
+		}
 	}
 	for k, _ := range pathlist {
 		output = append(output, k)
+	}
+	return output
+}
+
+func Util_list_mongos(lines []string) []string {
+	var output []string
+	for _, line := range lines {
+		if strings.Contains(line, "mongos") {
+			output = append(output, line)
+		}
 	}
 	return output
 }
@@ -166,6 +179,16 @@ func Util_list_all_dbpath(ps string) string {
 		}
 		output = append(output, "")
 	}
+
+	mongos := Util_list_mongos(pslist)
+	if len(mongos) > 0 {
+		output = append(output, "Running mongos")
+		for _, cmd := range mongos {
+			output = append(output, cmd)
+		}
+		output = append(output, "")
+	}
+
 	return strings.Join(output, "\n")
 }
 
