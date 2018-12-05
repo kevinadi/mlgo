@@ -9,14 +9,113 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shirou/gopsutil/process"
 )
+
+type MongoProcess struct {
+	Cmdline string
+	Dbpath  string
+	Port    string
+	Pid     string
+	Replset string
+	Wd      string
+}
+
+func (p *MongoProcess) Init(cmdline string, pid string) {
+	p.Cmdline = cmdline
+	p.Pid = pid
+	p.Get_dbpath()
+	p.Get_port()
+	p.Get_replset()
+	p.Wd = Util_guess_dbpath(cmdline)
+}
+
+func (p *MongoProcess) Get_dbpath() {
+	re := regexp.MustCompile("--dbpath ([^\\s]+)")
+	if match := re.FindAllStringSubmatch(p.Cmdline, 1); len(match) > 0 {
+		p.Dbpath = match[0][1]
+	}
+}
+
+func (p *MongoProcess) Get_port() {
+	re := regexp.MustCompile("--port ([0-9]+)")
+	if match := re.FindAllStringSubmatch(p.Cmdline, 1); len(match) > 0 {
+		p.Port = match[0][1]
+	}
+}
+
+func (p *MongoProcess) Get_replset() {
+	re := regexp.MustCompile("--replSet ([^\\s]+)")
+	if match := re.FindAllStringSubmatch(p.Cmdline, 1); len(match) > 0 {
+		p.Replset = match[0][1]
+	}
+}
+
+type MongoProcesses []*MongoProcess
+
+func (pp MongoProcesses) String() string {
+	var output []string
+	var workdir string
+	currdir, _ := os.Getwd()
+
+	if len(pp) == 0 {
+		return "No running processes"
+	}
+
+	for _, wd := range pp.Workdirs() {
+		workdir = wd
+		if wd == currdir {
+			workdir += " (current directory)"
+		}
+
+		output = append(output, workdir)
+		for _, p := range pp {
+			if p.Wd == wd {
+				output = append(output, fmt.Sprintf("%s %s", p.Pid, p.Cmdline))
+			}
+		}
+		output = append(output, "")
+	}
+
+	return strings.Join(output, "\n")
+}
+
+func (pp MongoProcesses) Workdirs() []string {
+	var output []string
+	workdirs := make(map[string]struct{})
+	for _, p := range pp {
+		workdirs[p.Wd] = struct{}{}
+	}
+	for k, _ := range workdirs {
+		output = append(output, k)
+	}
+	return output
+}
 
 func Check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func Procs_get() MongoProcesses {
+	procs, _ := process.Processes()
+	var mongo_procs []*MongoProcess
+	for _, proc := range procs {
+		if p_name, _ := proc.Name(); strings.Contains(p_name, "mongod") || strings.Contains(p_name, "mongos") {
+			p_cmd, _ := proc.Cmdline()
+			p_pid := proc.Pid
+			mongo_proc := new(MongoProcess)
+			mongo_proc.Init(p_cmd, strconv.Itoa(int(p_pid)))
+			mongo_procs = append(mongo_procs, mongo_proc)
+		}
+	}
+
+	return mongo_procs
 }
 
 func Util_randstring(num int) string {
@@ -193,15 +292,9 @@ func Util_list_all_dbpath(ps string) string {
 }
 
 func Util_ps(what string) string {
-	var output_lines []string
-	cmdline := "ps -Ao 'pid,command' | grep -v 'grep .* mongod' | grep '\\smongo[ds]\\s'"
-	if what != "" {
-		cmdline += fmt.Sprintf(" | grep %s", what)
-	}
-	for _, m := range strings.Split(Util_runcommand(cmdline), "\n") {
-		output_lines = append(output_lines, strings.TrimSpace(string(m)))
-	}
-	return strings.Join(output_lines, "\n")
+	mongo_procs := Procs_get()
+	return mongo_procs.String()
+
 }
 
 func Util_kill(what string) {

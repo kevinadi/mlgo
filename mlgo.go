@@ -61,7 +61,7 @@ func main() {
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
 		fmt.Println(helptext)
 		if ps := Util_ps(""); ps != "" {
-			fmt.Println(Util_list_all_dbpath(ps))
+			fmt.Println(Util_ps(""))
 		} else {
 			fmt.Println("No running processes")
 		}
@@ -78,12 +78,6 @@ func main() {
 			fmt.Println(Util_install_m(os.Args[2]))
 		} else {
 			fmt.Println(Util_install_m(""))
-		}
-	case "ps":
-		if len(os.Args) == 3 {
-			fmt.Println(Util_ps(os.Args[2]))
-		} else {
-			fmt.Println(Util_ps(""))
 		}
 	case "start":
 		if len(os.Args) == 3 {
