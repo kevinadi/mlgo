@@ -53,7 +53,6 @@ func main() {
 		helptext += "  replset (rs) -- run a replica set\n"
 		helptext += "  sharded (sh) -- run a sharded cluster\n"
 		helptext += "\n"
-		helptext += "  ps [criteria] -- show running mongod/mongos\n"
 		helptext += "  start [criteria] -- start some mongod/mongos using the start.sh script\n"
 		helptext += "  kill [all|criteria] -- kill running mongod/mongos under the current directory\n"
 		helptext += "  rm -- remove the data directory\n"
