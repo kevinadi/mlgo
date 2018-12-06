@@ -31,7 +31,7 @@ func (p *MongoProcess) Init(cmdline string, pid string) {
 	p.Get_dbpath()
 	p.Get_port()
 	p.Get_replset()
-	p.Wd = Util_guess_dbpath(cmdline)
+	p.Get_workpath()
 }
 
 func (p *MongoProcess) String() string {
@@ -56,6 +56,14 @@ func (p *MongoProcess) Get_replset() {
 	re := regexp.MustCompile("--replSet ([^\\s]+)")
 	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
 		p.Replset = match[1]
+	}
+}
+
+func (p *MongoProcess) Get_workpath() {
+	regexstring := fmt.Sprintf("--(?:db|log)path (.+)/%s/[0-9]+", Datadir)
+	re := regexp.MustCompile(regexstring)
+	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
+		p.Wd = match[1]
 	}
 }
 
@@ -231,17 +239,6 @@ func Util_runcommand(cmdline string) string {
 	}
 	output, _ := ioutil.ReadAll(comStdout)
 	return strings.TrimSpace(string(output))
-}
-
-func Util_guess_dbpath(line string) string {
-	var output string
-	regexstring := fmt.Sprintf("--(?:db|log)path (.+)/%s/[0-9]+", Datadir)
-	dbpath := regexp.MustCompile(regexstring)
-	matches := dbpath.FindStringSubmatch(line)
-	if len(matches) > 1 {
-		output = matches[1]
-	}
-	return output
 }
 
 func Util_ps(what string) string {
