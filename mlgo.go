@@ -61,7 +61,7 @@ func main() {
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
 		fmt.Println(helptext)
 		if ps := Util_ps(""); ps != "" {
-			fmt.Println(Util_ps(""))
+			fmt.Println(Util_ps_pretty())
 		} else {
 			fmt.Println("No running processes")
 		}

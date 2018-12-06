@@ -34,30 +34,42 @@ func (p *MongoProcess) Init(cmdline string, pid string) {
 	p.Wd = Util_guess_dbpath(cmdline)
 }
 
+func (p *MongoProcess) String() string {
+	return strings.Join([]string{p.Pid, p.Cmdline}, " ")
+}
+
 func (p *MongoProcess) Get_dbpath() {
-	re := regexp.MustCompile("--dbpath ([^\\s]+)")
-	if match := re.FindAllStringSubmatch(p.Cmdline, 1); len(match) > 0 {
-		p.Dbpath = match[0][1]
+	re := regexp.MustCompile("--(?:db|log)path ([^\\s]+)")
+	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
+		p.Dbpath = match[1]
 	}
 }
 
 func (p *MongoProcess) Get_port() {
 	re := regexp.MustCompile("--port ([0-9]+)")
-	if match := re.FindAllStringSubmatch(p.Cmdline, 1); len(match) > 0 {
-		p.Port = match[0][1]
+	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
+		p.Port = match[1]
 	}
 }
 
 func (p *MongoProcess) Get_replset() {
 	re := regexp.MustCompile("--replSet ([^\\s]+)")
-	if match := re.FindAllStringSubmatch(p.Cmdline, 1); len(match) > 0 {
-		p.Replset = match[0][1]
+	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
+		p.Replset = match[1]
 	}
 }
 
 type MongoProcesses []*MongoProcess
 
 func (pp MongoProcesses) String() string {
+	var output []string
+	for _, p := range pp {
+		output = append(output, p.String())
+	}
+	return strings.Join(output, "\n")
+}
+
+func (pp MongoProcesses) Pretty() string {
 	var output []string
 	var workdir string
 	currdir, _ := os.Getwd()
@@ -75,7 +87,7 @@ func (pp MongoProcesses) String() string {
 		output = append(output, workdir)
 		for _, p := range pp {
 			if p.Wd == wd {
-				output = append(output, fmt.Sprintf("%s %s", p.Pid, p.Cmdline))
+				output = append(output, p.String())
 			}
 		}
 		output = append(output, "")
@@ -108,13 +120,11 @@ func Procs_get() MongoProcesses {
 	for _, proc := range procs {
 		if p_name, _ := proc.Name(); strings.Contains(p_name, "mongod") || strings.Contains(p_name, "mongos") {
 			p_cmd, _ := proc.Cmdline()
-			p_pid := proc.Pid
 			mongo_proc := new(MongoProcess)
-			mongo_proc.Init(p_cmd, strconv.Itoa(int(p_pid)))
+			mongo_proc.Init(p_cmd, strconv.Itoa(int(proc.Pid)))
 			mongo_procs = append(mongo_procs, mongo_proc)
 		}
 	}
-
 	return mongo_procs
 }
 
@@ -225,7 +235,7 @@ func Util_runcommand(cmdline string) string {
 
 func Util_guess_dbpath(line string) string {
 	var output string
-	regexstring := fmt.Sprintf("--dbpath ([^ ]+)/%s/[0-9]+ ", Datadir)
+	regexstring := fmt.Sprintf("--(?:db|log)path (.+)/%s/[0-9]+", Datadir)
 	dbpath := regexp.MustCompile(regexstring)
 	matches := dbpath.FindStringSubmatch(line)
 	if len(matches) > 1 {
@@ -234,67 +244,25 @@ func Util_guess_dbpath(line string) string {
 	return output
 }
 
-func Util_list_dbpath(lines []string) []string {
-	var output []string
-	var pathlist = map[string]bool{}
-	for _, line := range lines {
-		guess_path := Util_guess_dbpath(line)
-		if guess_path != "" {
-			pathlist[guess_path] = true
-		}
-	}
-	for k, _ := range pathlist {
-		output = append(output, k)
-	}
-	return output
-}
-
-func Util_list_mongos(lines []string) []string {
-	var output []string
-	for _, line := range lines {
-		if strings.Contains(line, "mongos") {
-			output = append(output, line)
-		}
-	}
-	return output
-}
-
-func Util_list_all_dbpath(ps string) string {
-	var output []string
-	pslist := strings.Split(ps, "\n")
-	dbpaths := Util_list_dbpath(pslist)
-	pwd, _ := os.Getwd()
-
-	for _, path := range dbpaths {
-		if path == pwd {
-			output = append(output, fmt.Sprintf("Running processes under %s (current directory)", path))
-		} else {
-			output = append(output, fmt.Sprintf("Running processes under %s", path))
-		}
-		for _, cmd := range pslist {
-			if strings.Contains(cmd, path) {
-				output = append(output, cmd)
+func Util_ps(what string) string {
+	var output string
+	var outputarr []string
+	mongo_procs := Procs_get()
+	if what != "" {
+		for _, p := range mongo_procs {
+			if strings.Contains(p.String(), what) {
+				outputarr = append(outputarr, p.String())
 			}
 		}
-		output = append(output, "")
+		output = strings.Join(outputarr, "\n")
+	} else {
+		output = mongo_procs.String()
 	}
-
-	mongos := Util_list_mongos(pslist)
-	if len(mongos) > 0 {
-		output = append(output, "Running mongos")
-		for _, cmd := range mongos {
-			output = append(output, cmd)
-		}
-		output = append(output, "")
-	}
-
-	return strings.Join(output, "\n")
+	return output
 }
 
-func Util_ps(what string) string {
-	mongo_procs := Procs_get()
-	return mongo_procs.String()
-
+func Util_ps_pretty() string {
+	return Procs_get().Pretty()
 }
 
 func Util_kill(what string) {
