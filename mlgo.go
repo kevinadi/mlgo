@@ -32,6 +32,7 @@ func main() {
 	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
 	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 	replsetInitPtr := replsetCommand.Bool("noinit", false, "don't initiate the replica set")
+	replsetSinglePtr := replsetCommand.Bool("1", false, "initiate a single-node replica set")
 
 	// Sharded cluster
 	shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
@@ -114,7 +115,7 @@ func main() {
 	// Replica set
 	if replsetCommand.Parsed() {
 		rs := new(ReplSet)
-		rs.Init(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr)
+		rs.Init(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr, *replsetSinglePtr)
 		rs.Deploy()
 	}
 

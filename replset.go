@@ -25,8 +25,12 @@ type ReplSet struct {
 	Noinit      bool
 }
 
-func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool) {
-	rs.Num = num
+func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool, single bool) {
+	if single == true {
+		rs.Num = 1
+	} else {
+		rs.Num = num
+	}
 	rs.ReplSetName = replsetname
 	rs.Port = port
 	rs.Auth = auth
@@ -47,8 +51,8 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 	}
 
 	var hosts []string
-	for i := 0; i < num; i++ {
-		hosts = append(hosts, fmt.Sprintf("localhost:%d", port+i))
+	for i := 0; i < rs.Num; i++ {
+		hosts = append(hosts, fmt.Sprintf("localhost:%d", rs.Port+i))
 	}
 	rs.Connstr = replsetname + "/" + strings.Join(hosts, ",")
 }
