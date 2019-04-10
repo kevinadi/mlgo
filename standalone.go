@@ -52,6 +52,7 @@ func (m *Mongod) Cmd_mongod() []string {
 		"--port", strconv.Itoa(m.Port),
 		"--dbpath", m.Dbpath,
 		"--logpath", m.Logpath,
+		"--wiredTigerCacheSizeGB", "1",
 	}...)
 	if m.ReplSet == "" && m.Auth {
 		mongod_call = append(mongod_call, "--auth")
