@@ -59,6 +59,13 @@ func main() {
 		helptext += "  rm -- remove the data directory\n"
 		helptext += "\n"
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
+		helptext += "\n"
+		helptext += "Examples:\n"
+		helptext += "  mlgo rs                # Start a basic 3-node replica set\n"
+		helptext += "  mlgo rs -cfg PSA       # Start a 3-node replica set with PSA configuration\n"
+		helptext += "  mlgo rs -1             # Start a single node replica set\n"
+		helptext += "  mlgo sh                # Start a basic 2 shards, 1 node per shard, 1 config server\n"
+		helptext += "  mlgo sh -shardcfg PSA  # Start a 2 shards, PSA configuration on shards, 1 config server\n"
 		fmt.Println(helptext)
 		if ps := Util_ps(""); ps != "" {
 			fmt.Println(Util_ps_pretty())
