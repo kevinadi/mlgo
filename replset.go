@@ -25,12 +25,7 @@ type ReplSet struct {
 	Noinit      bool
 }
 
-func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool, single bool) {
-	if single == true {
-		rs.Num = 1
-	} else {
-		rs.Num = num
-	}
+func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool) {
 	rs.ReplSetName = replsetname
 	rs.Port = port
 	rs.Auth = auth

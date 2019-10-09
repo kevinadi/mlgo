@@ -27,12 +27,14 @@ func main() {
 	// Replica set
 	replsetAuthPtr := replsetCommand.Bool("auth", false, "use auth")
 	replsetPortPtr := replsetCommand.Int("port", 27017, "start on this port")
-	replsetNumPtr := replsetCommand.Int("num", 3, "run this many nodes")
+	replsetNumPtr := replsetCommand.Int("num", 1, "run this many nodes")
 	replsetConfigPtr := replsetCommand.String("cfg", "", "configuration of the set")
 	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
 	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 	replsetInitPtr := replsetCommand.Bool("noinit", false, "don't initiate the replica set")
-	replsetSinglePtr := replsetCommand.Bool("1", false, "initiate a single-node replica set")
+	replset3Ptr := replsetCommand.Bool("3", false, "initiate a three-node replica set")
+	replset5Ptr := replsetCommand.Bool("5", false, "initiate a five-node replica set")
+	replset7Ptr := replsetCommand.Bool("7", false, "initiate a seven-node replica set")
 
 	// Sharded cluster
 	shardedAuthPtr := shardedCommand.Bool("auth", false, "use auth")
@@ -61,9 +63,9 @@ func main() {
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
 		helptext += "\n"
 		helptext += "Examples:\n"
-		helptext += "  mlgo rs                # Start a basic 3-node replica set\n"
+		helptext += "  mlgo rs                # Start a basic single-node replica set\n"
 		helptext += "  mlgo rs -cfg PSA       # Start a 3-node replica set with PSA configuration\n"
-		helptext += "  mlgo rs -1             # Start a single node replica set\n"
+		helptext += "  mlgo rs -3             # Start a 3-node replica set\n"
 		helptext += "  mlgo sh                # Start a basic 2 shards, 1 node per shard, 1 config server\n"
 		helptext += "  mlgo sh -shardcfg PSA  # Start a 2 shards, PSA configuration on shards, 1 config server\n"
 		fmt.Println(helptext)
@@ -122,7 +124,16 @@ func main() {
 	// Replica set
 	if replsetCommand.Parsed() {
 		rs := new(ReplSet)
-		rs.Init(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr, *replsetSinglePtr)
+		if *replset3Ptr == true {
+			rs.Num = 3
+		} else if *replset5Ptr == true {
+			rs.Num = 5
+		} else if *replset7Ptr == true {
+			rs.Num = 7
+		} else {
+			rs.Num = *replsetNumPtr
+		}
+		rs.Init(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr)
 		rs.Deploy()
 	}
 

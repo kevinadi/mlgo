@@ -80,7 +80,7 @@ func (m *Mongos) Wait_for_primary() {
 		com := exec.Command(cmdline[0], cmdline[1:]...)
 		out, err := com.CombinedOutput()
 		if err != nil {
-			log.Println("isMaster on mongos failed with %s\n", err)
+			log.Printf("isMaster on mongos failed with %s\n", err)
 		}
 		primary = strings.Contains(string(out), "\"ismaster\" : true")
 		time.Sleep(2 * time.Second)
@@ -114,13 +114,13 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 	for i := 0; i < sh.NumShards; i++ {
 		sh_i := new(ReplSet)
 		rsname := fmt.Sprintf("shard%02d", i)
-		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth, false, sh.Script, false)
+		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth, false, sh.Script)
 		sh.ShardSvr = append(sh.ShardSvr, sh_i)
 	}
 
 	ConfigSvr := new(ReplSet)
 	rsconfig := "P" + strings.Repeat("S", numconfig-1)
-	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth, false, sh.Script, false)
+	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth, false, sh.Script)
 	sh.ConfigSvr = ConfigSvr
 
 	mongos := new(Mongos)
