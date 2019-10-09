@@ -26,6 +26,7 @@ type ReplSet struct {
 }
 
 func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool) {
+	rs.Num = num
 	rs.ReplSetName = replsetname
 	rs.Port = port
 	rs.Auth = auth
@@ -55,9 +56,9 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 func (rs *ReplSet) parse_config() {
 	re_config := regexp.MustCompile("(?i)^PS*A*$")
 	switch {
-	case rs.Config == "" || rs.Num != 3:
+	case rs.Config == "" && rs.Num > 0:
 		rs.Config = "P" + strings.Repeat("S", rs.Num-1)
-	case rs.Config != "PSS" && re_config.MatchString(rs.Config):
+	case rs.Config != "" && re_config.MatchString(rs.Config):
 		rs.Num = len(rs.Config)
 	case !re_config.MatchString(rs.Config):
 		fmt.Println("Invalid replica set configuration:", rs.Config)
