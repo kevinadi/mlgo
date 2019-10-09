@@ -32,6 +32,7 @@ func main() {
 	replsetNamePtr := replsetCommand.String("name", "replset", "name of the set")
 	replsetScriptPtr := replsetCommand.Bool("script", false, "print deployment script")
 	replsetInitPtr := replsetCommand.Bool("noinit", false, "don't initiate the replica set")
+	replset1Ptr := replsetCommand.Bool("1", false, "initiate a single-node replica set")
 	replset3Ptr := replsetCommand.Bool("3", false, "initiate a three-node replica set")
 	replset5Ptr := replsetCommand.Bool("5", false, "initiate a five-node replica set")
 	replset7Ptr := replsetCommand.Bool("7", false, "initiate a seven-node replica set")
@@ -123,17 +124,20 @@ func main() {
 
 	// Replica set
 	if replsetCommand.Parsed() {
+		var rs_num int
 		rs := new(ReplSet)
-		if *replset3Ptr == true {
-			rs.Num = 3
+		if *replset1Ptr == true {
+			rs_num = 1
+		} else if *replset3Ptr == true {
+			rs_num = 3
 		} else if *replset5Ptr == true {
-			rs.Num = 5
+			rs_num = 5
 		} else if *replset7Ptr == true {
-			rs.Num = 7
+			rs_num = 7
 		} else {
-			rs.Num = *replsetNumPtr
+			rs_num = *replsetNumPtr
 		}
-		rs.Init(*replsetNumPtr, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr)
+		rs.Init(rs_num, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr)
 		rs.Deploy()
 	}
 
