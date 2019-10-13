@@ -58,7 +58,7 @@ func main() {
 		helptext += "  sharded (sh) -- run a sharded cluster\n"
 		helptext += "\n"
 		helptext += "  start [criteria] -- start some mongod/mongos using the start.sh script\n"
-		helptext += "  kill [all|criteria] -- kill running mongod/mongos under the current directory\n"
+		helptext += "  kill/stop [all|criteria] -- kill running mongod/mongos under the current directory\n"
 		helptext += "  rm -- remove the data directory\n"
 		helptext += "\n"
 		helptext += "  [criteria] for ps, start, and kill is an expression that will restrict the output or operations of the command\n"
@@ -95,7 +95,7 @@ func main() {
 		} else {
 			Util_start_process("")
 		}
-	case "kill":
+	case "kill", "stop":
 		if len(os.Args) == 3 {
 			Util_kill(os.Args[2])
 		} else {
