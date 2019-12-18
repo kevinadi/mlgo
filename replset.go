@@ -54,7 +54,7 @@ func (rs *ReplSet) Init(num int, port int, config string, replsetname string, au
 }
 
 func (rs *ReplSet) parse_config() {
-	re_config := regexp.MustCompile("(?i)^PS*A*$")
+	re_config := regexp.MustCompile("(?i)^PS*[A|H]*$")
 	switch {
 	case rs.Config == "" && rs.Num > 0:
 		rs.Config = "P" + strings.Repeat("S", rs.Num-1)
@@ -93,6 +93,8 @@ func (rs *ReplSet) Cmd_init() []string {
 			}
 		case "A":
 			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', arbiterOnly:1}", i, rs.Port+i))
+		case "H":
+			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0, hidden:true}", i, rs.Port+i))
 		}
 	}
 
