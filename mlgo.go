@@ -127,13 +127,13 @@ func main() {
 	if replsetCommand.Parsed() {
 		var rs_num int
 		rs := new(ReplSet)
-		if *replset1Ptr == true {
+		if *replset1Ptr {
 			rs_num = 1
-		} else if *replset3Ptr == true {
+		} else if *replset3Ptr {
 			rs_num = 3
-		} else if *replset5Ptr == true {
+		} else if *replset5Ptr {
 			rs_num = 5
-		} else if *replset7Ptr == true {
+		} else if *replset7Ptr {
 			rs_num = 7
 		} else {
 			rs_num = *replsetNumPtr

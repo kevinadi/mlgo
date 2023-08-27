@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shirou/gopsutil/process"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 type MongoProcess struct {
@@ -39,7 +39,7 @@ func (p *MongoProcess) String() string {
 }
 
 func (p *MongoProcess) Get_dbpath() {
-	re := regexp.MustCompile("--(?:db|log)path ([^\\s]+)")
+	re := regexp.MustCompile(`--(?:db|log)path ([^\s]+)`)
 	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
 		p.Dbpath = match[1]
 	}
@@ -53,7 +53,7 @@ func (p *MongoProcess) Get_port() {
 }
 
 func (p *MongoProcess) Get_replset() {
-	re := regexp.MustCompile("--replSet ([^\\s]+)")
+	re := regexp.MustCompile(`--replSet ([^\s]+)`)
 	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
 		p.Replset = match[1]
 	}
@@ -110,7 +110,7 @@ func (pp MongoProcesses) Workdirs() []string {
 	for _, p := range pp {
 		workdirs[p.Wd] = struct{}{}
 	}
-	for k, _ := range workdirs {
+	for k := range workdirs {
 		output = append(output, k)
 	}
 	return output
@@ -153,11 +153,11 @@ func Util_cmd_script(cmd_array [][]string) string {
 				strings.Contains(cmd, "(") {
 				script += fmt.Sprintf("\"%s\"", cmd)
 			} else {
-				script += fmt.Sprintf("%s", cmd)
+				script += cmd
 			}
-			script += fmt.Sprintf(" ")
+			script += " "
 		}
-		script += fmt.Sprintf("\n")
+		script += "\n"
 	}
 	return script
 }
@@ -209,6 +209,9 @@ func Util_runcommand_string_string(cmdlines [][]string) {
 
 func Util_create_start_script(cmdlines [][]string) {
 	outfile, err := os.Create(fmt.Sprintf("%s/start.sh", Datadir))
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer outfile.Close()
 	Check(err)
 
