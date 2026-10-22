@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shirou/gopsutil/v3/process"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 type MongoProcess struct {
@@ -240,7 +240,7 @@ func Util_runcommand(cmdline string) string {
 	if err := com.Start(); err != nil {
 		log.Fatal(err)
 	}
-	output, _ := ioutil.ReadAll(comStdout)
+	output, _ := io.ReadAll(comStdout)
 	return strings.TrimSpace(string(output))
 }
 
