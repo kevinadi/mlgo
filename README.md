@@ -1,183 +1,91 @@
 # mlgo
 
-Launch a MongoDB deployment for test purposes
+`mlgo` starts a local MongoDB deployment for tests: one mongod, a replica set, or a sharded cluster. Data lives in `mlgo-data/` under the current directory.
 
-## Usage
+The deployment is planned first. `mlgo rs --script` prints the same steps that `mlgo rs` runs.
 
-```
-$ mlgo
-Usage:
-  standalone (st) -- run a standalone node
-  replset (rs) -- run a replica set
-  sharded (sh) -- run a sharded cluster
+## Install
 
-  ps [criteria] -- show running mongod/mongos
-  start [criteria] -- start some mongod/mongos using the start.sh script
-  kill [criteria] -- kill running mongod/mongos
-  rm -- remove the data/ directory
-```
-
-### Standalone
+Requires Go 1.27.
 
 ```
-$ mlgo st -h
-Usage of standalone:
-  -auth
-    	use auth
-  -port int
-    	start on this port (default 27017)
-  -script
-    	print deployment script
+go install github.com/kevinadi/mlgo/cmd/mlgo@latest
 ```
+
+From a checkout, `make` builds `./mlgo` and `make test` runs the tests. `mongod` must be on `PATH`. Initiating a set also needs `mongosh` (or the legacy `mongo` shell).
+
+## Commands
+
+```
+standalone (st)           one mongod
+replset (rs)              a replica set
+sharded (sh)              a sharded cluster
+
+start [criteria]          run matching lines from mlgo-data/start.sh
+kill|stop [all|criteria]  signal mongod/mongos; default is this directory
+rm                        remove mlgo-data when nothing from it is running
+```
+
+With no arguments, mlgo prints this help and the mongod and mongos processes it can see.
+
+`criteria` is a literal substring of the command line, or an exact pid, port, or replica set name. It is not a regular expression.
+
+Shared flags: `-port` (default 27017), `-auth`, `-script`.
 
 ### Replica set
 
 ```
-$ mlgo rs -h
-Usage of replset:
-  -auth
-    	use auth
-  -cfg string
-    	configuration of the set (default "PSS")
-  -name string
-    	name of the set (default "replset")
-  -num int
-    	run this many nodes (default 3)
-  -port int
-    	start on this port (default 27017)
-  -script
-    	print deployment script
+mlgo rs                              # one node, set name "replset"
+mlgo rs -num 3                       # primary and two secondaries
+mlgo rs -cfg PSA                     # primary, secondary, arbiter
+mlgo rs -cfg PSH                     # primary, secondary, hidden
+mlgo rs -init=false                  # start the processes, do not call rs.initiate
 ```
 
-#### Replica set examples
-
-Launch a basic 3-node replica set:
-
-```
-$ mlgo rs
-# Auth: false
-# Replica set nodes: 3
-# Nodes configuration: PSS
-```
-
-Launch a replica set with a specific node configuration:
-
-```
-$ mlgo rs -cfg PSA
-# Auth: false
-# Replica set nodes: 3
-# Nodes configuration: PSA
-```
-
-Launch a replica set with a number of nodes:
-
-```
-$ mlgo rs -num 5
-# Auth: false
-# Replica set nodes: 5
-# Nodes configuration: PSSSS
-```
+`-cfg` is `P`, then any number of `S`, then any number of `A` or `H`. When `-cfg` and `-num` are both set, they must describe the same number of members. A configuration with more than 7 voting members is rejected. A secondary at the 8th position or later is non-voting (`votes: 0`, `priority: 0`). Arbiters always vote and count toward the 7-voter limit. Hidden members never vote.
 
 ### Sharded cluster
 
 ```
-$ mlgo sh -h
-Usage of sharded:
-  -auth
-    	use auth
-  -configsvr int
-    	run this many config servers (default 1)
-  -num int
-    	run this many shards (default 2)
-  -port int
-    	start on this port (default 27017)
-  -script
-    	print deployment script
-  -shardcfg string
-    	configuration of the shard replica set (default "P")
-  -shardsvr int
-    	run this many nodes per shard (default 1)
+mlgo sh                              # mongos on 27017, two single-node shards, one config server
+mlgo sh -shardcfg PSA                # each shard is a PSA set
+mlgo sh -num 3 -shardsvr 3 -configsvr 3
 ```
 
-#### Sharded cluster examples:
+`-shardcfg` uses the same role string as `-cfg`. Ports are assigned upward from `-port`: mongos, then each shard, then the config servers.
 
-Launch a basic 2 shard, 1 node per shard, 1 config server:
+The planner assigns each process its role, and `--shardsvr` and `--configsvr` come from that role. A replica set started with `rs` never gets either flag, whatever its `-name`.
 
-```
-$ mlgo sh
-# Auth: false
-# mongos port: 27017
-# Number of shards: 2
-# ShardSvr replica set num: 1
-# ShardSvr configuration: P
-# Config servers: 1
-```
+### Authentication
 
-Launch a 3 shard, 3 nodes per shard, 3 config servers:
+`-auth` creates `user` / `password` with the `root` role on `admin`.
 
-```
-$ mlgo sh -num 3 -shardsvr 3 -configsvr 3
-# Auth: false
-# mongos port: 27017
-# Number of shards: 3
-# ShardSvr replica set num: 3
-# ShardSvr configuration: PSS
-# Config servers: 3
-```
+A standalone mongod is started with `--auth`. The user is created through the localhost exception.
 
-Launch a 2 shard, PSA configuration per shard, 1 config server:
+A replica set or sharded cluster gets one key file, `mlgo-data/keyfile.txt`, mode `0600`, filled from `crypto/rand`. Every member and mongos is started with `--keyFile`. The user is created after the set or cluster is up. `--script` prints an `openssl rand` command instead of embedding the secret.
 
-```
-$ mlgo sh -shardcfg PSA
-# Auth: false
-# mongos port: 27017
-# Number of shards: 2
-# ShardSvr replica set num: 3
-# ShardSvr configuration: PSA
-# Config servers: 1
-```
+### WiredTiger cache
 
-### Starting and killing
+mlgo passes `--wiredTigerCacheSizeGB` based on `mongod --version`:
 
-`mlgo` can start and kill processes given by the command line criteria. For example, to kill and restart all `mongod` having `shard00` in its command line:
+| mongod | value |
+| --- | --- |
+| 3.4 and newer | `0.5` |
+| 3.0, 3.1, 3.2, 3.3 | `1` |
+| older, or version not detected | flag omitted; mongod keeps its own default |
 
-```
-$ mlgo sh -shardcfg PSS
-# Auth: false
-# mongos port: 27017
-# Number of shards: 2
-# ShardSvr replica set num: 3
-# ShardSvr configuration: PSS
-# Config servers: 1
+Fractional cache sizes are accepted starting in MongoDB 3.4 (minimum 0.25 GB). 0.5 GB keeps a multi-node test deployment small without going under that minimum.
 
-...
+### Starting the process
 
-$  mlgo ps
-57384 mongod --dbpath data/27018 --port 27018 --logpath data/27018/mongod.log --fork --replSet shard00 --shardsvr
-57387 mongod --dbpath data/27019 --port 27019 --logpath data/27019/mongod.log --fork --replSet shard00 --shardsvr
-57390 mongod --dbpath data/27020 --port 27020 --logpath data/27020/mongod.log --fork --replSet shard00 --shardsvr
-57421 mongod --dbpath data/27021 --port 27021 --logpath data/27021/mongod.log --fork --replSet shard01 --shardsvr
-57424 mongod --dbpath data/27022 --port 27022 --logpath data/27022/mongod.log --fork --replSet shard01 --shardsvr
-57427 mongod --dbpath data/27023 --port 27023 --logpath data/27023/mongod.log --fork --replSet shard01 --shardsvr
-57453 mongod --dbpath data/27024 --port 27024 --logpath data/27024/mongod.log --fork --replSet config --configsvr
-57465 mongos --configdb config/localhost:27024 --port 27017 --logpath data/mongos.log --fork
+On Linux, and on macOS with mongod older than 8.2, mlgo adds `--fork`. MongoDB 8.2 and newer exit immediately on macOS if `--fork` is set: fork+exec is incompatible with the system. mlgo reads the same `mongod --version` output, starts that server in a new session, and waits until the new process is listening. `--script` waits in the shell before the next step. `mlgo start` drops a saved `--fork` from `start.sh` on those servers and waits the same way. Windows starts the server process directly, in a new process group, and does not pass the command through `cmd.exe`. A path that contains `&` or `%` stays one argument.
 
-$ mlgo kill shard00
-57384 mongod --dbpath data/27018 --port 27018 --logpath data/27018/mongod.log --fork --replSet shard00 --shardsvr
-57387 mongod --dbpath data/27019 --port 27019 --logpath data/27019/mongod.log --fork --replSet shard00 --shardsvr
-57390 mongod --dbpath data/27020 --port 27020 --logpath data/27020/mongod.log --fork --replSet shard00 --shardsvr
-kill 57384 57387 57390
+`mlgo-data/start.sh` is the argv list for `mlgo start`. It is not executable. Running it as a shell script blocks on the first server when `--fork` is omitted.
 
-$ mlgo start shard00
-Starting shard00 ...
+### Shell
 
-$ mlgo ps
-57421 mongod --dbpath data/27021 --port 27021 --logpath data/27021/mongod.log --fork --replSet shard01 --shardsvr
-57424 mongod --dbpath data/27022 --port 27022 --logpath data/27022/mongod.log --fork --replSet shard01 --shardsvr
-57427 mongod --dbpath data/27023 --port 27023 --logpath data/27023/mongod.log --fork --replSet shard01 --shardsvr
-57453 mongod --dbpath data/27024 --port 27024 --logpath data/27024/mongod.log --fork --replSet config --configsvr
-57465 mongos --configdb config/localhost:27024 --port 27017 --logpath data/mongos.log --fork
-57496 mongod --dbpath data/27018 --port 27018 --logpath data/27018/mongod.log --fork --replSet shard00 --shardsvr
-57499 mongod --dbpath data/27019 --port 27019 --logpath data/27019/mongod.log --fork --replSet shard00 --shardsvr
-57502 mongod --dbpath data/27020 --port 27020 --logpath data/27020/mongod.log --fork --replSet shard00 --shardsvr
-```
+`rs.initiate`, `sh.addShard`, and `createUser` run through `mongosh` when it is on `PATH`, otherwise `mongo`. The script starts with `set -e`, so a failed `mkdir`, `mongod`, or key file stops it. Readiness is `db.hello().isWritablePrimary` when that command exists, otherwise `isMaster`. Initiate and `addShard` are retried. A failed `mongod` is not retried.
+
+## Data directory
+
+Each node uses `mlgo-data/<port>/`. `mlgo start` reruns the `mongod` and `mongos` lines saved in `mlgo-data/start.sh`. Do not execute `start.sh` directly. `mlgo rm` deletes `mlgo-data` only when no server from this directory is still running.
