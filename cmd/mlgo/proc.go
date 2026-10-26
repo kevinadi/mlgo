@@ -2,18 +2,17 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/shirou/gopsutil/v3/process"
+	"github.com/kevinadi/mlgo/internal/topology"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 type MongoProcess struct {
@@ -60,7 +59,8 @@ func (p *MongoProcess) Get_replset() {
 }
 
 func (p *MongoProcess) Get_workpath() {
-	regexstring := fmt.Sprintf("--(?:db|log)path (.+)/%s/[0-9]+", Datadir)
+	// mongocmd builds these paths with filepath.Join, so Windows uses a backslash.
+	regexstring := fmt.Sprintf(`--(?:db|log)path (.+)[/\\]%s[/\\][0-9]+`, regexp.QuoteMeta(topology.DataDir))
 	re := regexp.MustCompile(regexstring)
 	if match := re.FindStringSubmatch(p.Cmdline); len(match) > 0 {
 		p.Wd = match[1]
@@ -79,19 +79,15 @@ func (pp MongoProcesses) String() string {
 
 func (pp MongoProcesses) Pretty() string {
 	var output []string
-	var workdir string
 	currdir, _ := os.Getwd()
-
 	if len(pp) == 0 {
 		return "No running processes"
 	}
-
 	for _, wd := range pp.Workdirs() {
-		workdir = wd
+		workdir := wd
 		if wd == currdir {
 			workdir += " (current directory)"
 		}
-
 		output = append(output, workdir)
 		for _, p := range pp {
 			if p.Wd == wd {
@@ -100,7 +96,6 @@ func (pp MongoProcesses) Pretty() string {
 		}
 		output = append(output, "")
 	}
-
 	return strings.Join(output, "\n")
 }
 
@@ -116,114 +111,19 @@ func (pp MongoProcesses) Workdirs() []string {
 	return output
 }
 
-func Check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 func Procs_get() MongoProcesses {
 	procs, _ := process.Processes()
-	var mongo_procs []*MongoProcess
+	var mongoProcs []*MongoProcess
 	for _, proc := range procs {
-		if p_name, _ := proc.Name(); strings.Contains(p_name, "mongod") || strings.Contains(p_name, "mongos") {
-			p_cmd, _ := proc.Cmdline()
-			mongo_proc := new(MongoProcess)
-			mongo_proc.Init(p_cmd, strconv.Itoa(int(proc.Pid)))
-			mongo_procs = append(mongo_procs, mongo_proc)
+		name, _ := proc.Name()
+		if strings.Contains(name, "mongod") || strings.Contains(name, "mongos") {
+			cmdline, _ := proc.Cmdline()
+			mongoProc := new(MongoProcess)
+			mongoProc.Init(cmdline, strconv.Itoa(int(proc.Pid)))
+			mongoProcs = append(mongoProcs, mongoProc)
 		}
 	}
-	return mongo_procs
-}
-
-func Util_randstring(num int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	randstr := make([]byte, num)
-	for i := range randstr {
-		randstr[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(randstr)
-}
-
-func Util_cmd_script(cmd_array [][]string) string {
-	var script string
-	for _, line := range cmd_array {
-		for _, cmd := range line {
-			if strings.Contains(cmd, " ") ||
-				strings.Contains(cmd, "(") {
-				script += fmt.Sprintf("\"%s\"", cmd)
-			} else {
-				script += cmd
-			}
-			script += " "
-		}
-		script += "\n"
-	}
-	return script
-}
-
-func Util_findstr(hay []string, needle string) bool {
-	for _, l := range hay {
-		if l == needle {
-			return true
-		}
-	}
-	return false
-}
-
-func Util_runcommand_string(line []string) {
-	var com *exec.Cmd
-	var err error
-
-	fmt.Println(">>>", line)
-	if runtime.GOOS == "windows" {
-		line = append([]string{"cmd", "/c"}, line...)
-	}
-
-	for i := 0; i < 5; i++ {
-		com = exec.Command(line[0], line[1:]...)
-		com.Stdout = os.Stdout
-		com.Stderr = os.Stderr
-
-		com.Start()
-		err = com.Wait()
-		if err != nil {
-			if Util_findstr(line, "mongo") {
-				fmt.Println("Retrying command...")
-				time.Sleep(2 * time.Second)
-			} else {
-				fmt.Println("Command", strings.Join(line, " "), "failed with", err)
-				os.Exit(1)
-			}
-		} else {
-			break
-		}
-	}
-}
-
-func Util_runcommand_string_string(cmdlines [][]string) {
-	for _, line := range cmdlines {
-		Util_runcommand_string(line)
-	}
-}
-
-func Util_create_start_script(cmdlines [][]string) {
-	outfile, err := os.Create(fmt.Sprintf("%s/start.sh", Datadir))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer outfile.Close()
-	Check(err)
-
-	script := Util_cmd_script(cmdlines)
-	for _, line := range strings.Split(script, "\n") {
-		if strings.Contains(line, "mongod") ||
-			strings.Contains(line, "mongos") {
-			_, err := outfile.WriteString(line + "\n")
-			Check(err)
-		}
-	}
-	outfile.Sync()
+	return mongoProcs
 }
 
 func Util_runcommand(cmdline string) string {
@@ -233,32 +133,29 @@ func Util_runcommand(cmdline string) string {
 	} else {
 		com = exec.Command("cmd", "/c", cmdline)
 	}
-	comStdout, err := com.StdoutPipe()
+	stdout, err := com.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err := com.Start(); err != nil {
 		log.Fatal(err)
 	}
-	output, _ := ioutil.ReadAll(comStdout)
+	output, _ := io.ReadAll(stdout)
 	return strings.TrimSpace(string(output))
 }
 
 func Util_ps(what string) string {
-	var output string
-	var outputarr []string
-	mongo_procs := Procs_get()
-	if what != "" {
-		for _, p := range mongo_procs {
-			if strings.Contains(p.String(), what) {
-				outputarr = append(outputarr, p.String())
-			}
-		}
-		output = strings.Join(outputarr, "\n")
-	} else {
-		output = mongo_procs.String()
+	mongoProcs := Procs_get()
+	if what == "" {
+		return mongoProcs.String()
 	}
-	return output
+	var output []string
+	for _, p := range mongoProcs {
+		if strings.Contains(p.String(), what) {
+			output = append(output, p.String())
+		}
+	}
+	return strings.Join(output, "\n")
 }
 
 func Util_ps_pretty() string {
@@ -267,45 +164,39 @@ func Util_ps_pretty() string {
 
 func Util_kill(what string) {
 	var cmdline string
-	var ps_output string
-	var pids []string
-
+	var psOutput string
 	if runtime.GOOS != "windows" {
 		if what == "" {
 			pwd, _ := os.Getwd()
-			dbpath_pwd := fmt.Sprintf("%s/%s/", pwd, Datadir)
-
-			ps_output = Util_ps(dbpath_pwd)
-
-			if ps_output == "" {
+			psOutput = Util_ps(fmt.Sprintf("%s/%s/", pwd, topology.DataDir))
+			if psOutput == "" {
 				fmt.Println("No processes running under current directory")
 				os.Exit(1)
 			}
 		} else if what == "all" {
-			ps_output = Util_ps("")
+			psOutput = Util_ps("")
 		} else {
-			ps_output = Util_ps(what)
+			psOutput = Util_ps(what)
 		}
-
-		for _, m := range strings.Split(ps_output, "\n") {
-			pids = append(pids, strings.Split(m, " ")[0])
+		var pids []string
+		for _, line := range strings.Split(psOutput, "\n") {
+			pids = append(pids, strings.Split(line, " ")[0])
 		}
 		cmdline = fmt.Sprintf("kill %s", strings.Join(pids, " "))
 	} else {
 		cmdline = "taskkill /f /im mongod.exe & taskkill /f /im mongos.exe"
 	}
-
 	fmt.Println("Killing processes...")
-	fmt.Println(ps_output)
+	fmt.Println(psOutput)
 	Util_runcommand(cmdline)
 }
 
 func Util_rm() {
 	var cmdline string
 	if runtime.GOOS != "windows" {
-		cmdline = fmt.Sprintf("rm -rf %s", Datadir)
+		cmdline = fmt.Sprintf("rm -rf %s", topology.DataDir)
 	} else {
-		cmdline = fmt.Sprintf("rmdir /q /s %s", Datadir)
+		cmdline = fmt.Sprintf("rmdir /q /s %s", topology.DataDir)
 	}
 	fmt.Println(cmdline)
 	Util_runcommand(cmdline)
@@ -314,17 +205,17 @@ func Util_rm() {
 func Util_start_process(what string) {
 	var cmdline string
 	if what != "" {
-		cmdline = fmt.Sprintf("cat %s/start.sh | grep %s | sh", Datadir, what)
+		cmdline = fmt.Sprintf("cat %s/start.sh | grep %s | sh", topology.DataDir, what)
 		fmt.Println("Starting", what, "...")
 	} else {
-		cmdline = fmt.Sprintf("cat %s/start.sh | sh", Datadir)
+		cmdline = fmt.Sprintf("cat %s/start.sh | sh", topology.DataDir)
 		fmt.Println("Starting all processes ...")
 	}
 	fmt.Println(Util_runcommand(cmdline))
 }
 
 func Util_install_m(where string) string {
-	var cmdline string = "curl https://raw.githubusercontent.com/aheckmann/m/master/bin/m"
+	cmdline := "curl https://raw.githubusercontent.com/aheckmann/m/master/bin/m"
 	if where != "" {
 		cmdline += fmt.Sprintf(" > %s/m && chmod 755 %s/m", where, where)
 	} else {
