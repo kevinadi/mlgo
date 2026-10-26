@@ -5,11 +5,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kevinadi/mlgo/internal/topology"
 )
 
 type ReplSet struct {
@@ -25,45 +26,38 @@ type ReplSet struct {
 	Noinit      bool
 }
 
-func (rs *ReplSet) Init(num int, port int, config string, replsetname string, auth bool, noinit bool, script bool) {
-	rs.Num = num
-	rs.ReplSetName = replsetname
-	rs.Port = port
+func (rs *ReplSet) Init(num int, port int, config string, cfgSet bool, numSet bool, replsetname string, auth bool, noinit bool, script bool, role topology.ServerRole) error {
+	plan, err := topology.PlanReplica(replsetname, port, config, num, cfgSet, numSet)
+	if err != nil {
+		return err
+	}
+
+	rs.Num = len(plan.Members)
+	rs.ReplSetName = plan.Name
+	rs.Port = plan.Port
 	rs.Auth = auth
-	rs.Config = config
+	rs.Config = plan.Config
 	rs.Script = script
 	rs.Noinit = noinit
-	rs.parse_config()
+	rs.Connstr = topology.ConnString(plan.Name, plan.Members)
 
-	for i := 0; i < rs.Num; i++ {
+	for _, member := range plan.Members {
 		m_i := new(Mongod)
-		m_i.Init(port+i, auth, replsetname, false)
+		if err := m_i.Init(member.Port, auth, replsetname, false, role); err != nil {
+			return err
+		}
 		rs.Mongod = append(rs.Mongod, m_i)
 	}
 
 	rs.Cmdlines = rs.Cmd_mongod()
 	if !rs.Noinit {
-		rs.Cmdlines = append(rs.Cmdlines, rs.Cmd_init())
+		init, err := rs.cmdInit(plan.Members)
+		if err != nil {
+			return err
+		}
+		rs.Cmdlines = append(rs.Cmdlines, init)
 	}
-
-	var hosts []string
-	for i := 0; i < rs.Num; i++ {
-		hosts = append(hosts, fmt.Sprintf("localhost:%d", rs.Port+i))
-	}
-	rs.Connstr = replsetname + "/" + strings.Join(hosts, ",")
-}
-
-func (rs *ReplSet) parse_config() {
-	re_config := regexp.MustCompile("(?i)^PS*[A|H]*$")
-	switch {
-	case rs.Config == "" && rs.Num > 0:
-		rs.Config = "P" + strings.Repeat("S", rs.Num-1)
-	case rs.Config != "" && re_config.MatchString(rs.Config):
-		rs.Num = len(rs.Config)
-	case !re_config.MatchString(rs.Config):
-		fmt.Println("Invalid replica set configuration:", rs.Config)
-		os.Exit(1)
-	}
+	return nil
 }
 
 func (rs *ReplSet) Cmd_mongod() [][]string {
@@ -75,34 +69,39 @@ func (rs *ReplSet) Cmd_mongod() [][]string {
 	return cmdline
 }
 
-func (rs *ReplSet) Cmd_init() []string {
-	var conf string
-	var members []string
-	var initcmd []string
-
-	for i, m := range rs.Config {
-		switch strings.ToUpper(string(m)) {
-		case "P":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:2}", i, rs.Port+i))
-		case "S":
-			switch {
-			case i > 0 && i < 7:
-				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d'}", i, rs.Port+i))
-			case i >= 7:
-				members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0}", i, rs.Port+i))
-			}
-		case "A":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', arbiterOnly:1}", i, rs.Port+i))
-		case "H":
-			members = append(members, fmt.Sprintf("{_id:%d, host:'localhost:%d', priority:0, votes:0, hidden:true}", i, rs.Port+i))
-		}
+func (rs *ReplSet) cmdInit(members []topology.Member) ([]string, error) {
+	docs := make([]string, 0, len(members))
+	for _, member := range members {
+		docs = append(docs, jsMember(member))
 	}
+	eval := fmt.Sprintf("rs.initiate({_id:%s, members:[%s]})", jsString(rs.ReplSetName), strings.Join(docs, ", "))
+	return []string{"mongo", "--port", strconv.Itoa(rs.Port), "--eval", eval}, nil
+}
 
-	conf += fmt.Sprintf("{_id:'%s', members:[%s]}", rs.ReplSetName, strings.Join(members, ", "))
-	eval := fmt.Sprintf("rs.initiate(%s)", conf)
-	initcmd = append(initcmd, []string{"mongo", "--port", strconv.Itoa(rs.Port), "--eval", eval}...)
+// jsMember renders a member document as JavaScript with single-quoted
+// strings, so the eval contains no double quotes. Util_cmd_script wraps the
+// argument in double quotes, and cmd.exe toggles quoting on them.
+func jsMember(m topology.Member) string {
+	fields := []string{fmt.Sprintf("_id:%d", m.ID), "host:" + jsString(m.Host)}
+	if m.Priority != nil {
+		fields = append(fields, fmt.Sprintf("priority:%d", *m.Priority))
+	}
+	if m.Votes != nil {
+		fields = append(fields, fmt.Sprintf("votes:%d", *m.Votes))
+	}
+	if m.Arbiter {
+		fields = append(fields, "arbiterOnly:true")
+	}
+	if m.Hidden {
+		fields = append(fields, "hidden:true")
+	}
+	return "{" + strings.Join(fields, ", ") + "}"
+}
 
-	return initcmd
+func jsString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, "'", `\'`)
+	return "'" + s + "'"
 }
 
 func (rs *ReplSet) Wait_for_primary() {

@@ -5,11 +5,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kevinadi/mlgo/internal/topology"
 )
 
 type Sharded struct {
@@ -93,15 +94,18 @@ func (m *Mongos) Wait_for_primary() {
 	}
 }
 
-func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, numconfig int, auth bool, script bool) {
-	sh.NumShards = numshards
-	sh.ShardNum = shardnum
-	sh.ShardConfig = shardcfg
-	sh.NumConfig = numconfig
-	sh.Port = port
+func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, shardCfgSet bool, shardNumSet bool, numconfig int, auth bool, script bool) error {
+	plan, err := topology.PlanSharded(port, numshards, shardnum, numconfig, shardcfg, shardCfgSet, shardNumSet)
+	if err != nil {
+		return err
+	}
+	sh.NumShards = len(plan.Shards)
+	sh.ShardNum = len(plan.Shards[0].Members)
+	sh.ShardConfig = plan.Shards[0].Config
+	sh.NumConfig = len(plan.Config.Members)
+	sh.Port = plan.MongosPort
 	sh.Auth = auth
 	sh.Script = script
-	sh.parse_config()
 
 	fmt.Println("# Port:", sh.Port)
 	fmt.Println("# Num Shards:", sh.NumShards)
@@ -111,16 +115,18 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 	fmt.Println("# Auth:", sh.Auth)
 	fmt.Println()
 
-	for i := 0; i < sh.NumShards; i++ {
+	for _, shard := range plan.Shards {
 		sh_i := new(ReplSet)
-		rsname := fmt.Sprintf("shard%02d", i)
-		sh_i.Init(sh.ShardNum, sh.Port+1+(i*sh.ShardNum), sh.ShardConfig, rsname, sh.Auth, false, sh.Script)
+		if err := sh_i.Init(len(shard.Members), shard.Port, shard.Config, true, false, shard.Name, sh.Auth, false, sh.Script, topology.RoleShard); err != nil {
+			return err
+		}
 		sh.ShardSvr = append(sh.ShardSvr, sh_i)
 	}
 
 	ConfigSvr := new(ReplSet)
-	rsconfig := "P" + strings.Repeat("S", numconfig-1)
-	ConfigSvr.Init(sh.NumConfig, sh.Port+1+(sh.NumShards*sh.ShardNum), rsconfig, "config", sh.Auth, false, sh.Script)
+	if err := ConfigSvr.Init(len(plan.Config.Members), plan.Config.Port, plan.Config.Config, true, false, plan.Config.Name, sh.Auth, false, sh.Script, topology.RoleConfig); err != nil {
+		return err
+	}
 	sh.ConfigSvr = ConfigSvr
 
 	mongos := new(Mongos)
@@ -132,20 +138,7 @@ func (sh *Sharded) Init(port int, numshards int, shardnum int, shardcfg string, 
 	}
 	sh.Cmdlines = append(sh.Cmdlines, sh.ConfigSvr.Cmdlines...)
 	sh.Cmdlines = append(sh.Cmdlines, mongos.Cmdlines...)
-
-}
-
-func (sh *Sharded) parse_config() {
-	re_config := regexp.MustCompile("(?i)^PS*A*$")
-	switch {
-	case sh.ShardConfig == "" || sh.ShardNum != 1:
-		sh.ShardConfig = "P" + strings.Repeat("S", sh.ShardNum-1)
-	case sh.ShardConfig != "P" && re_config.MatchString(sh.ShardConfig):
-		sh.ShardNum = len(sh.ShardConfig)
-	case !re_config.MatchString(sh.ShardConfig):
-		fmt.Println("Invalid replica set configuration:", sh.ShardConfig)
-		os.Exit(1)
-	}
+	return nil
 }
 
 func (sh *Sharded) Cmd_addshards() [][]string {

@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/kevinadi/mlgo/internal/topology"
 )
 
 const Datadir = "mlgo-data"
@@ -119,7 +121,10 @@ func main() {
 	// Standalone
 	if standaloneCommand.Parsed() {
 		m := new(Mongod)
-		m.Init(*standalonePortPtr, *standaloneAuthPtr, "", *standaloneScriptPtr)
+		if err := m.Init(*standalonePortPtr, *standaloneAuthPtr, "", *standaloneScriptPtr, topology.RoleData); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		m.Deploy()
 	}
 
@@ -127,6 +132,7 @@ func main() {
 	if replsetCommand.Parsed() {
 		var rs_num int
 		rs := new(ReplSet)
+		shortcut := *replset1Ptr || *replset3Ptr || *replset5Ptr || *replset7Ptr
 		if *replset1Ptr {
 			rs_num = 1
 		} else if *replset3Ptr {
@@ -138,14 +144,38 @@ func main() {
 		} else {
 			rs_num = *replsetNumPtr
 		}
-		rs.Init(rs_num, *replsetPortPtr, *replsetConfigPtr, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr)
+		cfgSet, numSet := false, false
+		replsetCommand.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "cfg":
+				cfgSet = true
+			case "num":
+				numSet = true
+			}
+		})
+		if err := rs.Init(rs_num, *replsetPortPtr, *replsetConfigPtr, cfgSet, numSet || shortcut, *replsetNamePtr, *replsetAuthPtr, *replsetInitPtr, *replsetScriptPtr, topology.RoleData); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		rs.Deploy()
 	}
 
 	// Sharded cluster
 	if shardedCommand.Parsed() {
 		sh := new(Sharded)
-		sh.Init(*shardedPortPtr, *shardedNumPtr, *shardedShardsvrPtr, *shardedShardsvrConfigPtr, *shardedConfigSvrPtr, *shardedAuthPtr, *shardedScriptPtr)
+		cfgSet, numSet := false, false
+		shardedCommand.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "shardcfg":
+				cfgSet = true
+			case "shardsvr":
+				numSet = true
+			}
+		})
+		if err := sh.Init(*shardedPortPtr, *shardedNumPtr, *shardedShardsvrPtr, *shardedShardsvrConfigPtr, cfgSet, numSet, *shardedConfigSvrPtr, *shardedAuthPtr, *shardedScriptPtr); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		sh.Deploy()
 	}
 }

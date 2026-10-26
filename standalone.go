@@ -6,7 +6,8 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
+
+	"github.com/kevinadi/mlgo/internal/topology"
 )
 
 type Mongod struct {
@@ -18,9 +19,13 @@ type Mongod struct {
 	KeyFile  string
 	Cmdlines [][]string
 	Script   bool
+	SvrRole  topology.ServerRole
 }
 
-func (m *Mongod) Init(port int, auth bool, replset string, script bool) {
+func (m *Mongod) Init(port int, auth bool, replset string, script bool, role topology.ServerRole) error {
+	if err := topology.ValidatePort(port); err != nil {
+		return err
+	}
 	currdir, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -29,6 +34,7 @@ func (m *Mongod) Init(port int, auth bool, replset string, script bool) {
 	m.Port = port
 	m.Auth = auth
 	m.Script = script
+	m.SvrRole = role
 	if replset != "" {
 		m.ReplSet = replset
 	}
@@ -42,6 +48,7 @@ func (m *Mongod) Init(port int, auth bool, replset string, script bool) {
 	if auth {
 		m.Cmdlines = append(m.Cmdlines, m.Cmd_adduser())
 	}
+	return nil
 }
 
 func (m *Mongod) Cmd_mongod() []string {
@@ -66,10 +73,10 @@ func (m *Mongod) Cmd_mongod() []string {
 				"--keyFile", fmt.Sprintf("%s/keyfile.txt", Datadir),
 			}...)
 		}
-		if strings.HasPrefix(m.ReplSet, "shard") {
+		switch m.SvrRole {
+		case topology.RoleShard:
 			mongod_call = append(mongod_call, "--shardsvr")
-		}
-		if strings.HasPrefix(m.ReplSet, "config") {
+		case topology.RoleConfig:
 			mongod_call = append(mongod_call, "--configsvr")
 		}
 	}
